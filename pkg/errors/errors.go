@@ -1,5 +1,3 @@
-// Package errors содержит доменные ошибки, на которые завязан маппинг
-// в HTTP-статусы на транспортном слое.
 package errors
 
 import "errors"
@@ -11,4 +9,7 @@ var (
 	ErrRefreshTokenNotFound = errors.New("refresh token not found")
 	ErrValidation           = errors.New("validation error")
 	ErrCacheMiss            = errors.New("cache: key not found")
+	ErrTeamNotFound         = errors.New("team not found")
+	ErrTaskNotFound         = errors.New("task not found")
+	ErrMemberExists         = errors.New("team member already exists")
 )
