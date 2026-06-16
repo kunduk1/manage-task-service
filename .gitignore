@@ -26,6 +26,15 @@ go.work.sum
 
 # env file
 .env
+local.env
+
+# build output
+/bin/
+
+# logs
+/logs/
+
+CLAUDE.md
 
 # Editor/IDE
 # .idea/

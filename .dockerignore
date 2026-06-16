@@ -1,0 +1,27 @@
+# VCS
+.git
+.gitignore
+
+# build output
+bin/
+
+# secrets / local config
+.env
+local.env
+
+# runtime artifacts
+logs/
+
+# CI / tooling not needed for the build
+.github/
+.golangci.yml
+Makefile
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# docs / notes (note: docs/ source IS needed — only ignore markdown)
+*.md
+
+# NOTE: do NOT ignore go.mod, go.sum, cmd/, internal/, pkg/, migrations/, docs/
+# (migrations/ and docs/ are go:embed'd into the binary at build time).

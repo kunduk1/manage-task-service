@@ -1,0 +1,31 @@
+# Конфиг go-test-coverage: порог общего покрытия 85%.
+# Проверка НЕ блокирующая — см. job "Coverage" в .github/workflows/ci.yml.
+profile: coverage.out
+
+# Порог считаем только по слоям, где юнит-тест — правильный инструмент:
+# service (бизнес-логика), token, api (хендлеры), transport
+# (response + middleware/auth). Инфраструктуру и чистые мапперы (converter)
+# исключаем — там нужны интеграционные тесты (БД/Redis) либо это
+# тривиальная проводка/геттеры/маппинг полей.
+# Пути в профиле — относительно корня модуля (без ведущего "/"), поэтому
+# каталоги/файлы якорим через "^".
+exclude:
+  paths:
+    - _mock\.go$                                  # gomock-моки: internal/**/mocks/*_mock.go
+    - ^docs/                                       # сгенерированный swagger (docs/docs.go и т.п.)
+    - ^cmd/                                         # точка входа main
+    # --- инфраструктура/проводка: юнит-тесты тут не тот инструмент ---
+    - ^internal/app/                                # DI/bootstrap
+    - ^internal/clients/                            # обёртки MySQL/Redis → интеграционные тесты
+    - ^internal/migrator/                           # миграции против реальной БД
+    - ^internal/closer/                             # реестр graceful-shutdown
+    - ^internal/logger/                             # настройка логгера
+    - ^internal/config/                             # чтение env (тривиальные геттеры)
+    - ^internal/repository/                         # data-access → интеграционные тесты
+    - ^internal/api/router\.go$                     # регистрация роутов (api/auth остаётся в scope)
+    - ^internal/api/.+/converter/                   # конвертеры DTO↔domain: чистый маппинг (repo-конвертеры уже под ^internal/repository/)
+    - ^internal/transport/middleware/logger\.go$    # логирующая mw (auth.go остаётся в scope)
+    - ^internal/transport/request/                  # тонкий decode-хелпер
+
+threshold:
+  total: 85

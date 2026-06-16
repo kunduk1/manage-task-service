@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Cache golangci-lint binary
+        uses: actions/cache@v4
+        with:
+          path: bin
+          key: ${{ runner.os }}-golangci-lint-${{ hashFiles('Makefile') }}
+      - name: golangci-lint (+ gosec, formatters)
+        run: make lint   # golangci-lint@v2.12.2 ставится в ./bin — версия закреплена в Makefile
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Verify module checksums
+        run: go mod verify
+      - name: Test (race)
+        run: go test -race ./...
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    continue-on-error: true   # порог покрытия НЕ блокирует пайплайн/выкатку
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Cache go-test-coverage binary
+        uses: actions/cache@v4
+        with:
+          path: bin
+          key: ${{ runner.os }}-go-test-coverage-${{ hashFiles('Makefile') }}
+      - name: Coverage gate (85%, предупреждение, не блокирует)
+        run: |
+          make cover COVER_FLAGS=--github-action-output \
+            || echo "::warning title=Покрытие ниже 85%::Порог тестового покрытия не закрыт — подробности в Job Summary"
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build binary
+        run: make build

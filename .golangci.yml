@@ -1,0 +1,32 @@
+# golangci-lint configuration (schema v2). Basic linter set.
+# Run with: make lint   (auto-fix: make lint-fix)
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  # "standard" = errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  enable:
+    - bodyclose   # checks HTTP response bodies are closed
+    - misspell    # common English spelling mistakes in comments/strings
+    - unconvert   # redundant type conversions
+    - gosec       # security SAST: SQL injection, weak crypto, hardcoded secrets, unsafe, ...
+  exclusions:
+    # Skip generated files (e.g. docs/docs.go from swag).
+    generated: lax
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec   # test fixtures use dummy secrets / relaxed checks
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/kunduk1/manage-task-service
