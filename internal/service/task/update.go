@@ -2,7 +2,6 @@ package task
 
 import (
 	"context"
-	stderrors "errors"
 	"fmt"
 	"strings"
 
@@ -87,11 +86,8 @@ func (s *serv) Update(ctx context.Context, in model.UpdateTaskInput) (*model.Tas
 // authorizeUpdate разрешает обновление создателю задачи, её текущему исполнителю
 // либо owner/admin команды; остальным — ErrForbidden.
 func (s *serv) authorizeUpdate(ctx context.Context, t *model.Task, actorID int64) error {
-	role, err := s.teamRepo.GetMemberRole(ctx, t.TeamID, actorID)
+	role, err := s.authz.RequireMember(ctx, t.TeamID, actorID)
 	if err != nil {
-		if stderrors.Is(err, errors.ErrNotTeamMember) {
-			return errors.ErrForbidden
-		}
 		return err
 	}
 	if role == model.RoleOwner || role == model.RoleAdmin {

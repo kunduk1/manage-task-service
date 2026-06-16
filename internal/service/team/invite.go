@@ -2,7 +2,6 @@ package team
 
 import (
 	"context"
-	stderrors "errors"
 	"fmt"
 
 	"github.com/kunduk1/manage-task-service/internal/model"
@@ -13,15 +12,8 @@ import (
 // Роль приглашаемого по умолчанию member; допускается также admin (но не owner).
 func (s *serv) Invite(ctx context.Context, in model.InviteInput) error {
 	// Проверка прав инициатора: он должен быть участником команды с ролью owner/admin.
-	actorRole, err := s.teamRepo.GetMemberRole(ctx, in.TeamID, in.ActorID)
-	if err != nil {
-		if stderrors.Is(err, errors.ErrNotTeamMember) {
-			return errors.ErrForbidden
-		}
+	if err := s.authz.RequireRole(ctx, in.TeamID, in.ActorID, model.RoleOwner, model.RoleAdmin); err != nil {
 		return err
-	}
-	if actorRole != model.RoleOwner && actorRole != model.RoleAdmin {
-		return errors.ErrForbidden
 	}
 
 	// Роль приглашаемого: по умолчанию member; owner назначить нельзя.

@@ -24,6 +24,7 @@ import (
 	userRepo "github.com/kunduk1/manage-task-service/internal/repository/user"
 	"github.com/kunduk1/manage-task-service/internal/service"
 	authService "github.com/kunduk1/manage-task-service/internal/service/auth"
+	"github.com/kunduk1/manage-task-service/internal/service/authz"
 	taskService "github.com/kunduk1/manage-task-service/internal/service/task"
 	teamService "github.com/kunduk1/manage-task-service/internal/service/team"
 	"github.com/kunduk1/manage-task-service/internal/token"
@@ -47,6 +48,7 @@ type serviceProvider struct {
 	metrics *metrics.Metrics
 
 	jwtManager  *token.Manager
+	authorizer  *authz.Authorizer
 	authService service.AuthService
 	authHandler *authapi.Handler
 	teamService service.TeamsService
@@ -149,12 +151,20 @@ func (s *serviceProvider) TeamRepository(ctx context.Context) repository.TeamRep
 	return s.teamRepository
 }
 
+func (s *serviceProvider) Authorizer(ctx context.Context) *authz.Authorizer {
+	if s.authorizer == nil {
+		s.authorizer = authz.New(s.TeamRepository(ctx))
+	}
+	return s.authorizer
+}
+
 func (s *serviceProvider) TeamService(ctx context.Context) service.TeamsService {
 	if s.teamService == nil {
 		s.teamService = teamService.NewService(
 			s.TeamRepository(ctx),
 			s.UserRepository(ctx),
 			s.TxManager(ctx),
+			s.Authorizer(ctx),
 		)
 	}
 	return s.teamService
@@ -193,9 +203,9 @@ func (s *serviceProvider) TaskService(ctx context.Context) service.TasksService 
 		s.taskService = taskService.NewService(
 			s.TaskRepository(ctx),
 			s.TaskHistoryRepository(ctx),
-			s.TeamRepository(ctx),
 			s.TaskCacheRepository(ctx),
 			s.TxManager(ctx),
+			s.Authorizer(ctx),
 		)
 	}
 	return s.taskService

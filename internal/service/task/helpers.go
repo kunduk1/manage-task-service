@@ -22,19 +22,15 @@ func validStatus(s model.TaskStatus) bool {
 
 // requireMembership проверяет, что пользователь — член команды; иначе ErrForbidden.
 func (s *serv) requireMembership(ctx context.Context, teamID, userID int64) error {
-	if _, err := s.teamRepo.GetMemberRole(ctx, teamID, userID); err != nil {
-		if stderrors.Is(err, errors.ErrNotTeamMember) {
-			return errors.ErrForbidden
-		}
-		return err
-	}
-	return nil
+	_, err := s.authz.RequireMember(ctx, teamID, userID)
+	return err
 }
 
 // requireAssigneeMembership проверяет, что назначаемый исполнитель — член команды задачи;
 // иначе ErrValidation (нельзя назначить задачу не-участнику — защита от misassigned на записи).
+// Это валидация входных данных, поэтому отсутствие членства маппится в ErrValidation, а не ErrForbidden.
 func (s *serv) requireAssigneeMembership(ctx context.Context, teamID, assigneeID int64) error {
-	if _, err := s.teamRepo.GetMemberRole(ctx, teamID, assigneeID); err != nil {
+	if _, err := s.authz.MemberRole(ctx, teamID, assigneeID); err != nil {
 		if stderrors.Is(err, errors.ErrNotTeamMember) {
 			return fmt.Errorf("%w: assignee must be a team member", errors.ErrValidation)
 		}

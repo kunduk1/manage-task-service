@@ -13,6 +13,7 @@ import (
 	"github.com/kunduk1/manage-task-service/internal/model"
 	repomocks "github.com/kunduk1/manage-task-service/internal/repository/mocks"
 	"github.com/kunduk1/manage-task-service/internal/service"
+	"github.com/kunduk1/manage-task-service/internal/service/authz"
 )
 
 // Сервис best-effort логирует сбои кэша через глобальный логгер — в тестах он не
@@ -36,7 +37,7 @@ func newTestService(t *testing.T) (
 	teamRepo := repomocks.NewMockTeamRepository(ctrl)
 	cacheRepo := repomocks.NewMockTaskCacheRepository(ctrl)
 	txm := dbmocks.NewMockTxManager(ctrl)
-	svc := NewService(taskRepo, historyRepo, teamRepo, cacheRepo, txm)
+	svc := NewService(taskRepo, historyRepo, cacheRepo, txm, authz.New(teamRepo))
 	return svc, taskRepo, historyRepo, teamRepo, txm, cacheRepo
 }
 

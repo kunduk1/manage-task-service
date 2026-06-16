@@ -10,6 +10,7 @@ import (
 	dbmocks "github.com/kunduk1/manage-task-service/internal/clients/db/mocks"
 	repomocks "github.com/kunduk1/manage-task-service/internal/repository/mocks"
 	"github.com/kunduk1/manage-task-service/internal/service"
+	"github.com/kunduk1/manage-task-service/internal/service/authz"
 )
 
 // newTestService собирает сервис с gomock-моками репозиториев и менеджера транзакций.
@@ -24,7 +25,7 @@ func newTestService(t *testing.T) (
 	teamRepo := repomocks.NewMockTeamRepository(ctrl)
 	userRepo := repomocks.NewMockUserRepository(ctrl)
 	txm := dbmocks.NewMockTxManager(ctrl)
-	svc := NewService(teamRepo, userRepo, txm)
+	svc := NewService(teamRepo, userRepo, txm, authz.New(teamRepo))
 	return svc, teamRepo, userRepo, txm
 }
 
