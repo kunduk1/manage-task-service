@@ -14,11 +14,12 @@ import (
 	taskapi "github.com/kunduk1/manage-task-service/internal/api/task"
 	teamapi "github.com/kunduk1/manage-task-service/internal/api/team"
 	"github.com/kunduk1/manage-task-service/internal/metrics"
+	"github.com/kunduk1/manage-task-service/internal/ratelimit"
 	"github.com/kunduk1/manage-task-service/internal/token"
 	"github.com/kunduk1/manage-task-service/internal/transport/middleware"
 )
 
-func NewRouter(authHandler *authapi.Handler, teamHandler *teamapi.Handler, taskHandler *taskapi.Handler, jwtManager *token.Manager, m *metrics.Metrics) http.Handler {
+func NewRouter(authHandler *authapi.Handler, teamHandler *teamapi.Handler, taskHandler *taskapi.Handler, jwtManager *token.Manager, m *metrics.Metrics, rateLimiter *ratelimit.Limiter) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -53,6 +54,9 @@ func NewRouter(authHandler *authapi.Handler, teamHandler *teamapi.Handler, taskH
 		// Защищённые ручки: требуют валидный access-токен
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Auth(jwtManager))
+			if rateLimiter != nil {
+				r.Use(middleware.RateLimit(rateLimiter))
+			}
 
 			r.Post("/teams", teamHandler.Create)
 			r.Get("/teams", teamHandler.List)

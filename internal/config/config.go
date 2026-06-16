@@ -12,6 +12,7 @@ import (
 	"github.com/kunduk1/manage-task-service/internal/config/logger"
 	metricscfg "github.com/kunduk1/manage-task-service/internal/config/metrics"
 	"github.com/kunduk1/manage-task-service/internal/config/mysql"
+	"github.com/kunduk1/manage-task-service/internal/config/ratelimit"
 	"github.com/kunduk1/manage-task-service/internal/config/redis"
 )
 
@@ -45,6 +46,12 @@ type JWTConfig interface {
 	RefreshTTL() time.Duration
 }
 
+type RateLimitConfig interface {
+	Enabled() bool
+	Requests() int
+	Window() time.Duration
+}
+
 type LoggerConfig interface {
 	Level() string
 	LogPath() string
@@ -54,12 +61,13 @@ type LoggerConfig interface {
 }
 
 type Config struct {
-	HTTP    HTTPConfig
-	Metrics MetricsConfig
-	MySQL   MySQLConfig
-	Redis   RedisConfig
-	JWT     JWTConfig
-	Logger  LoggerConfig
+	HTTP      HTTPConfig
+	Metrics   MetricsConfig
+	MySQL     MySQLConfig
+	Redis     RedisConfig
+	JWT       JWTConfig
+	Logger    LoggerConfig
+	RateLimit RateLimitConfig
 }
 
 // Load читает переменные окружения
@@ -79,11 +87,12 @@ func Load(path string) (*Config, error) {
 	}
 
 	return &Config{
-		HTTP:    http.New(),
-		Metrics: metricscfg.New(),
-		MySQL:   mysql.New(),
-		Redis:   redis.New(),
-		JWT:     jwtCfg,
-		Logger:  logger.New(),
+		HTTP:      http.New(),
+		Metrics:   metricscfg.New(),
+		MySQL:     mysql.New(),
+		Redis:     redis.New(),
+		JWT:       jwtCfg,
+		Logger:    logger.New(),
+		RateLimit: ratelimit.New(),
 	}, nil
 }

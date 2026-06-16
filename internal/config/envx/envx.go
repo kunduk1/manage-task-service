@@ -34,3 +34,13 @@ func Duration(key string, def time.Duration) time.Duration {
 	}
 	return def
 }
+
+// Bool возвращает булево значение переменной key, иначе def (в т.ч. при ошибке парсинга).
+func Bool(key string, def bool) bool {
+	if v, ok := os.LookupEnv(key); ok && v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			return b
+		}
+	}
+	return def
+}

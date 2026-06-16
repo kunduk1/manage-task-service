@@ -101,6 +101,7 @@ func (a *App) initHTTPServer(ctx context.Context) error {
 			a.serviceProvider.TaskHandler(ctx),
 			a.serviceProvider.JWTManager(),
 			a.serviceProvider.Metrics(),
+			a.serviceProvider.RateLimiter(ctx),
 		),
 		ReadHeaderTimeout: 15 * time.Second,
 	}

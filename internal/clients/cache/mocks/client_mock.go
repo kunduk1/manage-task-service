@@ -127,6 +127,21 @@ func (mr *MockClientMockRecorder) HSet(ctx, key, values any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HSet", reflect.TypeOf((*MockClient)(nil).HSet), ctx, key, values)
 }
 
+// Incr mocks base method.
+func (m *MockClient) Incr(ctx context.Context, key string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Incr", ctx, key)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Incr indicates an expected call of Incr.
+func (mr *MockClientMockRecorder) Incr(ctx, key any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Incr", reflect.TypeOf((*MockClient)(nil).Incr), ctx, key)
+}
+
 // Ping mocks base method.
 func (m *MockClient) Ping(ctx context.Context) error {
 	m.ctrl.T.Helper()

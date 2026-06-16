@@ -27,6 +27,10 @@ func (c *client) Set(ctx context.Context, key string, value interface{}, expirat
 	return c.rdb.Set(ctx, key, value, expiration).Err()
 }
 
+func (c *client) Incr(ctx context.Context, key string) (int64, error) {
+	return c.rdb.Incr(ctx, key).Result()
+}
+
 func (c *client) HSet(ctx context.Context, key string, values interface{}) error {
 	return c.rdb.HSet(ctx, key, values).Err()
 }

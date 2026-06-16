@@ -15,6 +15,7 @@ import (
 	"github.com/kunduk1/manage-task-service/internal/closer"
 	"github.com/kunduk1/manage-task-service/internal/config"
 	"github.com/kunduk1/manage-task-service/internal/metrics"
+	"github.com/kunduk1/manage-task-service/internal/ratelimit"
 	"github.com/kunduk1/manage-task-service/internal/repository"
 	taskRepo "github.com/kunduk1/manage-task-service/internal/repository/task"
 	taskCacheRepo "github.com/kunduk1/manage-task-service/internal/repository/taskcache"
@@ -45,7 +46,8 @@ type serviceProvider struct {
 	taskCacheRepository   repository.TaskCacheRepository
 	taskHistoryRepository repository.TaskHistoryRepository
 
-	metrics *metrics.Metrics
+	metrics     *metrics.Metrics
+	rateLimiter *ratelimit.Limiter
 
 	jwtManager  *token.Manager
 	authorizer  *authz.Authorizer
@@ -116,6 +118,22 @@ func (s *serviceProvider) Metrics() *metrics.Metrics {
 		s.metrics = metrics.New()
 	}
 	return s.metrics
+}
+
+// RateLimiter возвращает per-user лимитер запросов или nil, если фича выключена
+// (в этом случае router не навешивает соответствующий middleware).
+func (s *serviceProvider) RateLimiter(ctx context.Context) *ratelimit.Limiter {
+	if !s.cfg.RateLimit.Enabled() {
+		return nil
+	}
+	if s.rateLimiter == nil {
+		s.rateLimiter = ratelimit.New(
+			s.CacheClient(ctx),
+			s.cfg.RateLimit.Requests(),
+			s.cfg.RateLimit.Window(),
+		)
+	}
+	return s.rateLimiter
 }
 
 func (s *serviceProvider) JWTManager() *token.Manager {
