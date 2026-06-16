@@ -53,6 +53,65 @@ components:
           example: Jane Doe
           type: string
       type: object
+    github_com_kunduk1_manage-task-service_pkg_team_v1.CreateTeamRequest:
+      properties:
+        description:
+          example: Core platform team
+          type: string
+        name:
+          example: Platform
+          type: string
+      type: object
+    github_com_kunduk1_manage-task-service_pkg_team_v1.InviteRequest:
+      properties:
+        role:
+          example: member
+          type: string
+        user_id:
+          example: 7
+          type: integer
+      type: object
+    github_com_kunduk1_manage-task-service_pkg_team_v1.InviteResponse:
+      properties:
+        role:
+          example: member
+          type: string
+        team_id:
+          example: 1
+          type: integer
+        user_id:
+          example: 7
+          type: integer
+      type: object
+    github_com_kunduk1_manage-task-service_pkg_team_v1.ListTeamsResponse:
+      properties:
+        teams:
+          items:
+            $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_pkg_team_v1.TeamResponse'
+          type: array
+          uniqueItems: false
+      type: object
+    github_com_kunduk1_manage-task-service_pkg_team_v1.TeamResponse:
+      properties:
+        created_at:
+          example: "2026-06-16T12:00:00Z"
+          type: string
+        created_by:
+          example: 42
+          type: integer
+        description:
+          example: Core platform team
+          type: string
+        id:
+          example: 1
+          type: integer
+        name:
+          example: Platform
+          type: string
+        updated_at:
+          example: "2026-06-16T12:00:00Z"
+          type: string
+      type: object
   securitySchemes:
     BearerAuth:
       in: header
@@ -143,5 +202,137 @@ paths:
       summary: Register a new user
       tags:
       - auth
+  /teams:
+    get:
+      description: Returns the teams the authenticated caller is a member of.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_pkg_team_v1.ListTeamsResponse'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody'
+          description: Unauthorized
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody'
+          description: Internal Server Error
+      security:
+      - BearerAuth: []
+      summary: List my teams
+      tags:
+      - teams
+    post:
+      description: Creates a team; the authenticated caller becomes its owner.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_pkg_team_v1.CreateTeamRequest'
+        description: team payload
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_pkg_team_v1.TeamResponse'
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody'
+          description: Unauthorized
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody'
+          description: Internal Server Error
+      security:
+      - BearerAuth: []
+      summary: Create a team
+      tags:
+      - teams
+  /teams/{id}/invite:
+    post:
+      description: Adds a user to the team. Only owner or admin may invite. Role defaults
+        to member.
+      parameters:
+      - description: team id
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_pkg_team_v1.InviteRequest'
+        description: invite payload
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_pkg_team_v1.InviteResponse'
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody'
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody'
+          description: Internal Server Error
+      security:
+      - BearerAuth: []
+      summary: Invite a user to a team
+      tags:
+      - teams
 servers:
 - url: http://localhost:8080/api/v1

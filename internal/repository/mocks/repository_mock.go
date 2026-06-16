@@ -72,6 +72,21 @@ func (mr *MockUserRepositoryMockRecorder) GetByEmail(ctx, email any) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByEmail", reflect.TypeOf((*MockUserRepository)(nil).GetByEmail), ctx, email)
 }
 
+// GetByID mocks base method.
+func (m *MockUserRepository) GetByID(ctx context.Context, id int64) (*model.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByID", ctx, id)
+	ret0, _ := ret[0].(*model.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByID indicates an expected call of GetByID.
+func (mr *MockUserRepositoryMockRecorder) GetByID(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockUserRepository)(nil).GetByID), ctx, id)
+}
+
 // MockTokenRepository is a mock of TokenRepository interface.
 type MockTokenRepository struct {
 	ctrl     *gomock.Controller
@@ -205,6 +220,21 @@ func (m *MockTeamRepository) GetByID(ctx context.Context, id int64) (*model.Team
 func (mr *MockTeamRepositoryMockRecorder) GetByID(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockTeamRepository)(nil).GetByID), ctx, id)
+}
+
+// GetMemberRole mocks base method.
+func (m *MockTeamRepository) GetMemberRole(ctx context.Context, teamID, userID int64) (model.TeamRole, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMemberRole", ctx, teamID, userID)
+	ret0, _ := ret[0].(model.TeamRole)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetMemberRole indicates an expected call of GetMemberRole.
+func (mr *MockTeamRepositoryMockRecorder) GetMemberRole(ctx, teamID, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMemberRole", reflect.TypeOf((*MockTeamRepository)(nil).GetMemberRole), ctx, teamID, userID)
 }
 
 // ListByUser mocks base method.

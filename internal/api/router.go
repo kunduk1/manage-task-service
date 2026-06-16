@@ -11,10 +11,12 @@ import (
 
 	"github.com/kunduk1/manage-task-service/docs"
 	authapi "github.com/kunduk1/manage-task-service/internal/api/auth"
+	teamapi "github.com/kunduk1/manage-task-service/internal/api/team"
+	"github.com/kunduk1/manage-task-service/internal/token"
 	"github.com/kunduk1/manage-task-service/internal/transport/middleware"
 )
 
-func NewRouter(authHandler *authapi.Handler) http.Handler {
+func NewRouter(authHandler *authapi.Handler, teamHandler *teamapi.Handler, jwtManager *token.Manager) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -41,8 +43,18 @@ func NewRouter(authHandler *authapi.Handler) http.Handler {
 	r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")))
 
 	r.Route("/api/v1", func(r chi.Router) {
+		// Публичные ручки аутентификации.
 		r.Post("/register", authHandler.Register)
 		r.Post("/login", authHandler.Login)
+
+		// Защищённые ручки: требуют валидный access-токен
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+
+			r.Post("/teams", teamHandler.Create)
+			r.Get("/teams", teamHandler.List)
+			r.Post("/teams/{id}/invite", teamHandler.Invite)
+		})
 	})
 
 	return r

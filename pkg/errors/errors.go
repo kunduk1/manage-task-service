@@ -12,4 +12,6 @@ var (
 	ErrTeamNotFound         = errors.New("team not found")
 	ErrTaskNotFound         = errors.New("task not found")
 	ErrMemberExists         = errors.New("team member already exists")
+	ErrNotTeamMember        = errors.New("user is not a team member")
+	ErrForbidden            = errors.New("forbidden")
 )

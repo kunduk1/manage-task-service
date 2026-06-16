@@ -29,6 +29,22 @@ type TeamMember struct {
 	JoinedAt time.Time
 }
 
+// CreateTeamInput — входные данные для создания команды; OwnerID становится владельцем.
+type CreateTeamInput struct {
+	Name        string
+	Description string
+	OwnerID     int64
+}
+
+// InviteInput — входные данные для приглашения пользователя в команду.
+// ActorID — аутентифицированный инициатор (для проверки прав), InviteeID — приглашаемый.
+type InviteInput struct {
+	TeamID    int64
+	ActorID   int64
+	InviteeID int64
+	Role      TeamRole
+}
+
 // TeamStats — результат аналитического запроса: по каждой команде её название,
 // число участников и число задач, переведённых в done за последние 7 дней.
 type TeamStats struct {

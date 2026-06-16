@@ -12,6 +12,7 @@ import (
 type UserRepository interface {
 	Create(ctx context.Context, user *model.User) (int64, error)
 	GetByEmail(ctx context.Context, email string) (*model.User, error)
+	GetByID(ctx context.Context, id int64) (*model.User, error)
 }
 
 type TokenRepository interface {
@@ -25,6 +26,8 @@ type TeamRepository interface {
 	GetByID(ctx context.Context, id int64) (*model.Team, error)
 	ListByUser(ctx context.Context, userID int64) ([]model.Team, error)
 	AddMember(ctx context.Context, m *model.TeamMember) error
+	// GetMemberRole — роль пользователя в команде; ErrNotTeamMember, если членства нет.
+	GetMemberRole(ctx context.Context, teamID, userID int64) (model.TeamRole, error)
 	// TeamStats — JOIN 3+ таблиц + агрегация: по каждой команде название,
 	// число участников и число задач в done за последние 7 дней.
 	TeamStats(ctx context.Context) ([]model.TeamStats, error)

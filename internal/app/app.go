@@ -92,8 +92,12 @@ func (a *App) initMigrations(ctx context.Context) error {
 
 func (a *App) initHTTPServer(ctx context.Context) error {
 	a.httpServer = &http.Server{
-		Addr:              a.cfg.HTTP.Address(),
-		Handler:           api.NewRouter(a.serviceProvider.AuthHandler(ctx)),
+		Addr: a.cfg.HTTP.Address(),
+		Handler: api.NewRouter(
+			a.serviceProvider.AuthHandler(ctx),
+			a.serviceProvider.TeamHandler(ctx),
+			a.serviceProvider.JWTManager(),
+		),
 		ReadHeaderTimeout: 15 * time.Second,
 	}
 	return nil

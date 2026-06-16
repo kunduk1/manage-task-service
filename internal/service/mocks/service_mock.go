@@ -70,3 +70,71 @@ func (mr *MockAuthServiceMockRecorder) Register(ctx, in any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockAuthService)(nil).Register), ctx, in)
 }
+
+// MockTeamsService is a mock of TeamsService interface.
+type MockTeamsService struct {
+	ctrl     *gomock.Controller
+	recorder *MockTeamsServiceMockRecorder
+	isgomock struct{}
+}
+
+// MockTeamsServiceMockRecorder is the mock recorder for MockTeamsService.
+type MockTeamsServiceMockRecorder struct {
+	mock *MockTeamsService
+}
+
+// NewMockTeamsService creates a new mock instance.
+func NewMockTeamsService(ctrl *gomock.Controller) *MockTeamsService {
+	mock := &MockTeamsService{ctrl: ctrl}
+	mock.recorder = &MockTeamsServiceMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockTeamsService) EXPECT() *MockTeamsServiceMockRecorder {
+	return m.recorder
+}
+
+// Create mocks base method.
+func (m *MockTeamsService) Create(ctx context.Context, in model.CreateTeamInput) (*model.Team, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Create", ctx, in)
+	ret0, _ := ret[0].(*model.Team)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Create indicates an expected call of Create.
+func (mr *MockTeamsServiceMockRecorder) Create(ctx, in any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockTeamsService)(nil).Create), ctx, in)
+}
+
+// Invite mocks base method.
+func (m *MockTeamsService) Invite(ctx context.Context, in model.InviteInput) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Invite", ctx, in)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Invite indicates an expected call of Invite.
+func (mr *MockTeamsServiceMockRecorder) Invite(ctx, in any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Invite", reflect.TypeOf((*MockTeamsService)(nil).Invite), ctx, in)
+}
+
+// List mocks base method.
+func (m *MockTeamsService) List(ctx context.Context, userID int64) ([]model.Team, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "List", ctx, userID)
+	ret0, _ := ret[0].([]model.Team)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// List indicates an expected call of List.
+func (mr *MockTeamsServiceMockRecorder) List(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockTeamsService)(nil).List), ctx, userID)
+}

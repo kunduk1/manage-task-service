@@ -38,6 +38,30 @@ func TestServiceError_StatusMapping(t *testing.T) {
 			wantMsg:    "invalid email or password",
 		},
 		{
+			name:       "forbidden",
+			err:        errors.ErrForbidden,
+			wantStatus: http.StatusForbidden,
+			wantMsg:    "forbidden",
+		},
+		{
+			name:       "team not found",
+			err:        errors.ErrTeamNotFound,
+			wantStatus: http.StatusNotFound,
+			wantMsg:    "team not found",
+		},
+		{
+			name:       "user not found",
+			err:        errors.ErrUserNotFound,
+			wantStatus: http.StatusNotFound,
+			wantMsg:    "user not found",
+		},
+		{
+			name:       "member exists",
+			err:        errors.ErrMemberExists,
+			wantStatus: http.StatusConflict,
+			wantMsg:    "user is already a team member",
+		},
+		{
 			name:       "unknown error falls back to 500",
 			err:        stderrors.New("boom"),
 			wantStatus: http.StatusInternalServerError,

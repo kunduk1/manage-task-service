@@ -5,6 +5,7 @@ import (
 	"log"
 
 	authapi "github.com/kunduk1/manage-task-service/internal/api/auth"
+	teamapi "github.com/kunduk1/manage-task-service/internal/api/team"
 	"github.com/kunduk1/manage-task-service/internal/clients/cache"
 	redisCache "github.com/kunduk1/manage-task-service/internal/clients/cache/redis"
 	"github.com/kunduk1/manage-task-service/internal/clients/db"
@@ -13,10 +14,12 @@ import (
 	"github.com/kunduk1/manage-task-service/internal/closer"
 	"github.com/kunduk1/manage-task-service/internal/config"
 	"github.com/kunduk1/manage-task-service/internal/repository"
+	teamRepo "github.com/kunduk1/manage-task-service/internal/repository/team"
 	tokenRepo "github.com/kunduk1/manage-task-service/internal/repository/token"
 	userRepo "github.com/kunduk1/manage-task-service/internal/repository/user"
 	"github.com/kunduk1/manage-task-service/internal/service"
 	authService "github.com/kunduk1/manage-task-service/internal/service/auth"
+	teamService "github.com/kunduk1/manage-task-service/internal/service/team"
 	"github.com/kunduk1/manage-task-service/internal/token"
 )
 
@@ -30,10 +33,13 @@ type serviceProvider struct {
 
 	userRepository  repository.UserRepository
 	tokenRepository repository.TokenRepository
+	teamRepository  repository.TeamRepository
 
 	jwtManager  *token.Manager
 	authService service.AuthService
 	authHandler *authapi.Handler
+	teamService service.TeamsService
+	teamHandler *teamapi.Handler
 }
 
 func newServiceProvider(cfg *config.Config) *serviceProvider {
@@ -114,4 +120,29 @@ func (s *serviceProvider) AuthHandler(ctx context.Context) *authapi.Handler {
 		s.authHandler = authapi.NewHandler(s.AuthService(ctx))
 	}
 	return s.authHandler
+}
+
+func (s *serviceProvider) TeamRepository(ctx context.Context) repository.TeamRepository {
+	if s.teamRepository == nil {
+		s.teamRepository = teamRepo.NewRepository(s.DBClient(ctx))
+	}
+	return s.teamRepository
+}
+
+func (s *serviceProvider) TeamService(ctx context.Context) service.TeamsService {
+	if s.teamService == nil {
+		s.teamService = teamService.NewService(
+			s.TeamRepository(ctx),
+			s.UserRepository(ctx),
+			s.TxManager(ctx),
+		)
+	}
+	return s.teamService
+}
+
+func (s *serviceProvider) TeamHandler(ctx context.Context) *teamapi.Handler {
+	if s.teamHandler == nil {
+		s.teamHandler = teamapi.NewHandler(s.TeamService(ctx))
+	}
+	return s.teamHandler
 }
