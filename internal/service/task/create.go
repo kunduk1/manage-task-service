@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"go.uber.org/zap"
+
+	"github.com/kunduk1/manage-task-service/internal/logger"
 	"github.com/kunduk1/manage-task-service/internal/model"
 	"github.com/kunduk1/manage-task-service/pkg/errors"
 )
@@ -58,6 +61,11 @@ func (s *serv) Create(ctx context.Context, in model.CreateTaskInput) (*model.Tas
 	id, err := s.taskRepo.Create(ctx, task)
 	if err != nil {
 		return nil, err
+	}
+
+	// Список задач команды изменился — сбрасываем кэш
+	if err := s.cacheRepo.InvalidateTeam(ctx, in.TeamID); err != nil {
+		logger.Warn("task list cache invalidation failed", zap.Int64("team_id", in.TeamID), zap.Error(err))
 	}
 
 	// Перечитываем задачу, чтобы вернуть проставленные БД таймстемпы.

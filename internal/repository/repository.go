@@ -46,6 +46,16 @@ type TaskRepository interface {
 	MisassignedTasks(ctx context.Context) ([]model.Task, error)
 }
 
+// TaskCacheRepository — кэш списков задач команды (read-through, инвалидация по команде).
+type TaskCacheRepository interface {
+	// GetTaskList возвращает закэшированный список под фильтр f
+	GetTaskList(ctx context.Context, teamID int64, f model.TaskFilter) ([]model.Task, error)
+	// SetTaskList кладёт список в кэш под фильтр f и продлевает TTL ключа команды.
+	SetTaskList(ctx context.Context, teamID int64, f model.TaskFilter, tasks []model.Task) error
+	// InvalidateTeam удаляет весь кэш списков задач команды (все варианты фильтров).
+	InvalidateTeam(ctx context.Context, teamID int64) error
+}
+
 type TaskHistoryRepository interface {
 	Create(ctx context.Context, e *model.TaskHistoryEntry) (int64, error)
 	ListByTask(ctx context.Context, taskID int64) ([]model.TaskHistoryEntry, error)

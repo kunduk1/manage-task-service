@@ -6,14 +6,22 @@ import (
 	"testing"
 
 	"go.uber.org/mock/gomock"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/kunduk1/manage-task-service/internal/clients/db"
 	dbmocks "github.com/kunduk1/manage-task-service/internal/clients/db/mocks"
+	"github.com/kunduk1/manage-task-service/internal/logger"
 	"github.com/kunduk1/manage-task-service/internal/model"
 	repomocks "github.com/kunduk1/manage-task-service/internal/repository/mocks"
 	"github.com/kunduk1/manage-task-service/internal/service"
 	"github.com/kunduk1/manage-task-service/pkg/errors"
 )
+
+// Сервис best-effort логирует сбои кэша через глобальный логгер — в тестах он не
+// инициализирован, поэтому ставим no-op, чтобы logger.Warn не паниковал на nil.
+func init() {
+	logger.NewGlobalLogger(zapcore.NewNopCore())
+}
 
 func newTestService(t *testing.T) (
 	service.TasksService,
@@ -21,15 +29,17 @@ func newTestService(t *testing.T) (
 	*repomocks.MockTaskHistoryRepository,
 	*repomocks.MockTeamRepository,
 	*dbmocks.MockTxManager,
+	*repomocks.MockTaskCacheRepository,
 ) {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	taskRepo := repomocks.NewMockTaskRepository(ctrl)
 	historyRepo := repomocks.NewMockTaskHistoryRepository(ctrl)
 	teamRepo := repomocks.NewMockTeamRepository(ctrl)
+	cacheRepo := repomocks.NewMockTaskCacheRepository(ctrl)
 	txm := dbmocks.NewMockTxManager(ctrl)
-	svc := NewService(taskRepo, historyRepo, teamRepo, txm)
-	return svc, taskRepo, historyRepo, teamRepo, txm
+	svc := NewService(taskRepo, historyRepo, teamRepo, cacheRepo, txm)
+	return svc, taskRepo, historyRepo, teamRepo, txm, cacheRepo
 }
 
 // runTx — заглушка ReadCommit, исполняющая переданную функцию в том же контексте.
@@ -44,7 +54,7 @@ func ptrInt64(v int64) *int64                        { return &v }
 // --- Create ---
 
 func TestCreate_Success(t *testing.T) {
-	svc, taskRepo, _, teamRepo, _ := newTestService(t)
+	svc, taskRepo, _, teamRepo, _, cacheRepo := newTestService(t)
 
 	teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(42)).Return(model.RoleMember, nil)
 	taskRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
@@ -60,6 +70,8 @@ func TestCreate_Success(t *testing.T) {
 			}
 			return int64(5), nil
 		})
+	// Создание задачи инвалидирует кэш списка команды.
+	cacheRepo.EXPECT().InvalidateTeam(gomock.Any(), int64(1)).Return(nil)
 	taskRepo.EXPECT().GetByID(gomock.Any(), int64(5)).
 		Return(&model.Task{ID: 5, TeamID: 1, Title: "Write docs", Status: model.StatusTodo, CreatedBy: 42}, nil)
 
@@ -75,7 +87,7 @@ func TestCreate_Success(t *testing.T) {
 }
 
 func TestCreate_AssigneeMustBeMember(t *testing.T) {
-	svc, _, _, teamRepo, _ := newTestService(t)
+	svc, _, _, teamRepo, _, _ := newTestService(t)
 
 	teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(42)).Return(model.RoleMember, nil)
 	teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(7)).
@@ -91,7 +103,7 @@ func TestCreate_AssigneeMustBeMember(t *testing.T) {
 
 func TestCreate_Validation(t *testing.T) {
 	// Невалидный ввод отсекается до обращения к репозиториям — никаких EXPECT.
-	svc, _, _, _, _ := newTestService(t)
+	svc, _, _, _, _, _ := newTestService(t)
 
 	cases := []model.CreateTaskInput{
 		{ActorID: 1, TeamID: 1, Title: "   "},                                  // пустой title
@@ -106,7 +118,7 @@ func TestCreate_Validation(t *testing.T) {
 }
 
 func TestCreate_ForbiddenNotMember(t *testing.T) {
-	svc, _, _, teamRepo, _ := newTestService(t)
+	svc, _, _, teamRepo, _, _ := newTestService(t)
 
 	teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(99)).
 		Return(model.TeamRole(""), errors.ErrNotTeamMember)
@@ -120,9 +132,11 @@ func TestCreate_ForbiddenNotMember(t *testing.T) {
 // --- List ---
 
 func TestList_Success(t *testing.T) {
-	svc, taskRepo, _, teamRepo, _ := newTestService(t)
+	svc, taskRepo, _, teamRepo, _, cacheRepo := newTestService(t)
 
 	teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(42)).Return(model.RoleMember, nil)
+	// Промах кэша → читаем из БД и затем кладём результат в кэш.
+	cacheRepo.EXPECT().GetTaskList(gomock.Any(), int64(1), gomock.Any()).Return(nil, errors.ErrCacheMiss)
 	taskRepo.EXPECT().List(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, f model.TaskFilter) ([]model.Task, error) {
 			if f.TeamID == nil || *f.TeamID != 1 {
@@ -130,6 +144,7 @@ func TestList_Success(t *testing.T) {
 			}
 			return []model.Task{{ID: 1}, {ID: 2}}, nil
 		})
+	cacheRepo.EXPECT().SetTaskList(gomock.Any(), int64(1), gomock.Any(), gomock.Any()).Return(nil)
 
 	got, err := svc.List(context.Background(), model.TaskListQuery{ActorID: 42, TeamID: 1})
 	if err != nil {
@@ -140,8 +155,25 @@ func TestList_Success(t *testing.T) {
 	}
 }
 
+func TestList_CacheHit(t *testing.T) {
+	// Попадание в кэш: БД-репозиторий не вызывается (taskRepo.List без EXPECT).
+	svc, _, _, teamRepo, _, cacheRepo := newTestService(t)
+
+	teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(42)).Return(model.RoleMember, nil)
+	cacheRepo.EXPECT().GetTaskList(gomock.Any(), int64(1), gomock.Any()).
+		Return([]model.Task{{ID: 1}, {ID: 2}, {ID: 3}}, nil)
+
+	got, err := svc.List(context.Background(), model.TaskListQuery{ActorID: 42, TeamID: 1})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 3 {
+		t.Errorf("expected 3 cached tasks, got %d", len(got))
+	}
+}
+
 func TestList_RequiresTeamID(t *testing.T) {
-	svc, _, _, _, _ := newTestService(t)
+	svc, _, _, _, _, _ := newTestService(t)
 
 	_, err := svc.List(context.Background(), model.TaskListQuery{ActorID: 42, TeamID: 0})
 	if !stderrors.Is(err, errors.ErrValidation) {
@@ -150,7 +182,7 @@ func TestList_RequiresTeamID(t *testing.T) {
 }
 
 func TestList_ForbiddenNotMember(t *testing.T) {
-	svc, _, _, teamRepo, _ := newTestService(t)
+	svc, _, _, teamRepo, _, _ := newTestService(t)
 
 	teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(99)).
 		Return(model.TeamRole(""), errors.ErrNotTeamMember)
@@ -164,7 +196,7 @@ func TestList_ForbiddenNotMember(t *testing.T) {
 // --- Update ---
 
 func TestUpdate_StatusChangeRecordsHistory(t *testing.T) {
-	svc, taskRepo, historyRepo, teamRepo, txm := newTestService(t)
+	svc, taskRepo, historyRepo, teamRepo, txm, cacheRepo := newTestService(t)
 
 	cur := &model.Task{ID: 10, TeamID: 1, Title: "T", Status: model.StatusTodo, CreatedBy: 42}
 	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).Return(cur, nil)
@@ -189,6 +221,8 @@ func TestUpdate_StatusChangeRecordsHistory(t *testing.T) {
 			}
 			return int64(1), nil
 		})
+	// Обновление задачи инвалидирует кэш списка команды.
+	cacheRepo.EXPECT().InvalidateTeam(gomock.Any(), int64(1)).Return(nil)
 	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).
 		Return(&model.Task{ID: 10, TeamID: 1, Title: "T", Status: model.StatusInProgress, CreatedBy: 42}, nil)
 
@@ -204,7 +238,7 @@ func TestUpdate_StatusChangeRecordsHistory(t *testing.T) {
 }
 
 func TestUpdate_NotFound(t *testing.T) {
-	svc, taskRepo, _, _, _ := newTestService(t)
+	svc, taskRepo, _, _, _, _ := newTestService(t)
 
 	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).Return(nil, errors.ErrTaskNotFound)
 
@@ -216,7 +250,7 @@ func TestUpdate_NotFound(t *testing.T) {
 
 func TestUpdate_ForbiddenPlainMember(t *testing.T) {
 	// Рядовой член, не создатель и не исполнитель → 403.
-	svc, taskRepo, _, teamRepo, _ := newTestService(t)
+	svc, taskRepo, _, teamRepo, _, _ := newTestService(t)
 
 	cur := &model.Task{ID: 10, TeamID: 1, Status: model.StatusTodo, CreatedBy: 42, AssigneeID: ptrInt64(7)}
 	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).Return(cur, nil)
@@ -232,7 +266,7 @@ func TestUpdate_ForbiddenPlainMember(t *testing.T) {
 
 func TestUpdate_AssigneeCanUpdate(t *testing.T) {
 	// Исполнитель (роль member) вправе обновлять, история не пишется при отсутствии изменений.
-	svc, taskRepo, _, teamRepo, txm := newTestService(t)
+	svc, taskRepo, _, teamRepo, txm, cacheRepo := newTestService(t)
 
 	cur := &model.Task{ID: 10, TeamID: 1, Title: "T", Status: model.StatusTodo, CreatedBy: 42, AssigneeID: ptrInt64(7)}
 	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).Return(cur, nil)
@@ -240,6 +274,7 @@ func TestUpdate_AssigneeCanUpdate(t *testing.T) {
 
 	runTx(txm)
 	taskRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
+	cacheRepo.EXPECT().InvalidateTeam(gomock.Any(), int64(1)).Return(nil)
 	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).Return(cur, nil)
 
 	// Передаём тот же статус — изменений нет, historyRepo.Create НЕ ожидается.
@@ -252,7 +287,7 @@ func TestUpdate_AssigneeCanUpdate(t *testing.T) {
 }
 
 func TestUpdate_InvalidStatus(t *testing.T) {
-	svc, taskRepo, _, teamRepo, _ := newTestService(t)
+	svc, taskRepo, _, teamRepo, _, _ := newTestService(t)
 
 	cur := &model.Task{ID: 10, TeamID: 1, Status: model.StatusTodo, CreatedBy: 42}
 	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).Return(cur, nil)
@@ -269,7 +304,7 @@ func TestUpdate_InvalidStatus(t *testing.T) {
 // --- History ---
 
 func TestHistory_Success(t *testing.T) {
-	svc, taskRepo, historyRepo, teamRepo, _ := newTestService(t)
+	svc, taskRepo, historyRepo, teamRepo, _, _ := newTestService(t)
 
 	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).
 		Return(&model.Task{ID: 10, TeamID: 1}, nil)
@@ -287,7 +322,7 @@ func TestHistory_Success(t *testing.T) {
 }
 
 func TestHistory_ForbiddenNotMember(t *testing.T) {
-	svc, taskRepo, _, teamRepo, _ := newTestService(t)
+	svc, taskRepo, _, teamRepo, _, _ := newTestService(t)
 
 	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).Return(&model.Task{ID: 10, TeamID: 1}, nil)
 	teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(99)).

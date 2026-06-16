@@ -2,8 +2,12 @@ package task
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 
+	"go.uber.org/zap"
+
+	"github.com/kunduk1/manage-task-service/internal/logger"
 	"github.com/kunduk1/manage-task-service/internal/model"
 	"github.com/kunduk1/manage-task-service/pkg/errors"
 )
@@ -29,5 +33,23 @@ func (s *serv) List(ctx context.Context, in model.TaskListQuery) ([]model.Task, 
 		Limit:      in.Limit,
 		Offset:     in.Offset,
 	}
-	return s.taskRepo.List(ctx, filter)
+
+	// Read-through: пробуем кэш; промах и любые ошибки кэша — не фатальны, идём в БД.
+	cached, err := s.cacheRepo.GetTaskList(ctx, in.TeamID, filter)
+	if err == nil {
+		return cached, nil
+	}
+	if !stderrors.Is(err, errors.ErrCacheMiss) {
+		logger.Warn("task list cache read failed", zap.Int64("team_id", in.TeamID), zap.Error(err))
+	}
+
+	tasks, err := s.taskRepo.List(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.cacheRepo.SetTaskList(ctx, in.TeamID, filter, tasks); err != nil {
+		logger.Warn("task list cache write failed", zap.Int64("team_id", in.TeamID), zap.Error(err))
+	}
+	return tasks, nil
 }

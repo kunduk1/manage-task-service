@@ -16,6 +16,7 @@ import (
 	"github.com/kunduk1/manage-task-service/internal/config"
 	"github.com/kunduk1/manage-task-service/internal/repository"
 	taskRepo "github.com/kunduk1/manage-task-service/internal/repository/task"
+	taskCacheRepo "github.com/kunduk1/manage-task-service/internal/repository/taskcache"
 	taskHistoryRepo "github.com/kunduk1/manage-task-service/internal/repository/taskhistory"
 	teamRepo "github.com/kunduk1/manage-task-service/internal/repository/team"
 	tokenRepo "github.com/kunduk1/manage-task-service/internal/repository/token"
@@ -39,6 +40,7 @@ type serviceProvider struct {
 	tokenRepository       repository.TokenRepository
 	teamRepository        repository.TeamRepository
 	taskRepository        repository.TaskRepository
+	taskCacheRepository   repository.TaskCacheRepository
 	taskHistoryRepository repository.TaskHistoryRepository
 
 	jwtManager  *token.Manager
@@ -162,6 +164,13 @@ func (s *serviceProvider) TaskRepository(ctx context.Context) repository.TaskRep
 	return s.taskRepository
 }
 
+func (s *serviceProvider) TaskCacheRepository(ctx context.Context) repository.TaskCacheRepository {
+	if s.taskCacheRepository == nil {
+		s.taskCacheRepository = taskCacheRepo.NewRepository(s.CacheClient(ctx))
+	}
+	return s.taskCacheRepository
+}
+
 func (s *serviceProvider) TaskHistoryRepository(ctx context.Context) repository.TaskHistoryRepository {
 	if s.taskHistoryRepository == nil {
 		s.taskHistoryRepository = taskHistoryRepo.NewRepository(s.DBClient(ctx))
@@ -175,6 +184,7 @@ func (s *serviceProvider) TaskService(ctx context.Context) service.TasksService 
 			s.TaskRepository(ctx),
 			s.TaskHistoryRepository(ctx),
 			s.TeamRepository(ctx),
+			s.TaskCacheRepository(ctx),
 			s.TxManager(ctx),
 		)
 	}

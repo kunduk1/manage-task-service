@@ -380,6 +380,73 @@ func (mr *MockTaskRepositoryMockRecorder) Update(ctx, task any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockTaskRepository)(nil).Update), ctx, task)
 }
 
+// MockTaskCacheRepository is a mock of TaskCacheRepository interface.
+type MockTaskCacheRepository struct {
+	ctrl     *gomock.Controller
+	recorder *MockTaskCacheRepositoryMockRecorder
+	isgomock struct{}
+}
+
+// MockTaskCacheRepositoryMockRecorder is the mock recorder for MockTaskCacheRepository.
+type MockTaskCacheRepositoryMockRecorder struct {
+	mock *MockTaskCacheRepository
+}
+
+// NewMockTaskCacheRepository creates a new mock instance.
+func NewMockTaskCacheRepository(ctrl *gomock.Controller) *MockTaskCacheRepository {
+	mock := &MockTaskCacheRepository{ctrl: ctrl}
+	mock.recorder = &MockTaskCacheRepositoryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockTaskCacheRepository) EXPECT() *MockTaskCacheRepositoryMockRecorder {
+	return m.recorder
+}
+
+// GetTaskList mocks base method.
+func (m *MockTaskCacheRepository) GetTaskList(ctx context.Context, teamID int64, f model.TaskFilter) ([]model.Task, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTaskList", ctx, teamID, f)
+	ret0, _ := ret[0].([]model.Task)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTaskList indicates an expected call of GetTaskList.
+func (mr *MockTaskCacheRepositoryMockRecorder) GetTaskList(ctx, teamID, f any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTaskList", reflect.TypeOf((*MockTaskCacheRepository)(nil).GetTaskList), ctx, teamID, f)
+}
+
+// InvalidateTeam mocks base method.
+func (m *MockTaskCacheRepository) InvalidateTeam(ctx context.Context, teamID int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InvalidateTeam", ctx, teamID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// InvalidateTeam indicates an expected call of InvalidateTeam.
+func (mr *MockTaskCacheRepositoryMockRecorder) InvalidateTeam(ctx, teamID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InvalidateTeam", reflect.TypeOf((*MockTaskCacheRepository)(nil).InvalidateTeam), ctx, teamID)
+}
+
+// SetTaskList mocks base method.
+func (m *MockTaskCacheRepository) SetTaskList(ctx context.Context, teamID int64, f model.TaskFilter, tasks []model.Task) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetTaskList", ctx, teamID, f, tasks)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetTaskList indicates an expected call of SetTaskList.
+func (mr *MockTaskCacheRepositoryMockRecorder) SetTaskList(ctx, teamID, f, tasks any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTaskList", reflect.TypeOf((*MockTaskCacheRepository)(nil).SetTaskList), ctx, teamID, f, tasks)
+}
+
 // MockTaskHistoryRepository is a mock of TaskHistoryRepository interface.
 type MockTaskHistoryRepository struct {
 	ctrl     *gomock.Controller

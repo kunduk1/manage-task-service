@@ -11,6 +11,7 @@ type serv struct {
 	taskRepo    repository.TaskRepository
 	historyRepo repository.TaskHistoryRepository
 	teamRepo    repository.TeamRepository
+	cacheRepo   repository.TaskCacheRepository
 	txManager   db.TxManager
 }
 
@@ -18,12 +19,14 @@ func NewService(
 	taskRepo repository.TaskRepository,
 	historyRepo repository.TaskHistoryRepository,
 	teamRepo repository.TeamRepository,
+	cacheRepo repository.TaskCacheRepository,
 	txManager db.TxManager,
 ) service.TasksService {
 	return &serv{
 		taskRepo:    taskRepo,
 		historyRepo: historyRepo,
 		teamRepo:    teamRepo,
+		cacheRepo:   cacheRepo,
 		txManager:   txManager,
 	}
 }
