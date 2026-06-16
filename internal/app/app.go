@@ -34,6 +34,7 @@ type App struct {
 	cfg             *config.Config
 	serviceProvider *serviceProvider
 	httpServer      *http.Server
+	metricsServer   *http.Server
 }
 
 func NewApp(ctx context.Context) (*App, error) {
@@ -51,6 +52,7 @@ func (a *App) initDeps(ctx context.Context) error {
 		a.initLogger,
 		a.initMigrations,
 		a.initHTTPServer,
+		a.initMetricsServer,
 	}
 	for _, fn := range inits {
 		if err := fn(ctx); err != nil {
@@ -98,7 +100,20 @@ func (a *App) initHTTPServer(ctx context.Context) error {
 			a.serviceProvider.TeamHandler(ctx),
 			a.serviceProvider.TaskHandler(ctx),
 			a.serviceProvider.JWTManager(),
+			a.serviceProvider.Metrics(),
 		),
+		ReadHeaderTimeout: 15 * time.Second,
+	}
+	return nil
+}
+
+func (a *App) initMetricsServer(_ context.Context) error {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", a.serviceProvider.Metrics().Handler())
+
+	a.metricsServer = &http.Server{
+		Addr:              a.cfg.Metrics.Address(),
+		Handler:           mux,
 		ReadHeaderTimeout: 15 * time.Second,
 	}
 	return nil
@@ -111,17 +126,25 @@ func (a *App) Run() error {
 		defer cancel()
 		return a.httpServer.Shutdown(shutdownCtx)
 	})
+	closer.Add(func() error {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		return a.metricsServer.Shutdown(shutdownCtx)
+	})
 
 	logger.Info("starting http server", zap.String("address", a.cfg.HTTP.Address()))
+	logger.Info("starting metrics server", zap.String("address", a.cfg.Metrics.Address()))
 
-	errCh := make(chan error, 1)
-	go func() {
-		if err := a.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	errCh := make(chan error, 2)
+	serve := func(srv *http.Server) {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 			return
 		}
 		errCh <- nil
-	}()
+	}
+	go serve(a.httpServer)
+	go serve(a.metricsServer)
 
 	runErr := <-errCh
 

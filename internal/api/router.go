@@ -13,16 +13,18 @@ import (
 	authapi "github.com/kunduk1/manage-task-service/internal/api/auth"
 	taskapi "github.com/kunduk1/manage-task-service/internal/api/task"
 	teamapi "github.com/kunduk1/manage-task-service/internal/api/team"
+	"github.com/kunduk1/manage-task-service/internal/metrics"
 	"github.com/kunduk1/manage-task-service/internal/token"
 	"github.com/kunduk1/manage-task-service/internal/transport/middleware"
 )
 
-func NewRouter(authHandler *authapi.Handler, teamHandler *teamapi.Handler, taskHandler *taskapi.Handler, jwtManager *token.Manager) http.Handler {
+func NewRouter(authHandler *authapi.Handler, teamHandler *teamapi.Handler, taskHandler *taskapi.Handler, jwtManager *token.Manager, m *metrics.Metrics) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
 	r.Use(chimw.Recoverer)
 	r.Use(middleware.RequestLogger)
+	r.Use(middleware.Metrics(m))
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},

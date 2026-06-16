@@ -10,11 +10,16 @@ import (
 	"github.com/kunduk1/manage-task-service/internal/config/http"
 	"github.com/kunduk1/manage-task-service/internal/config/jwt"
 	"github.com/kunduk1/manage-task-service/internal/config/logger"
+	metricscfg "github.com/kunduk1/manage-task-service/internal/config/metrics"
 	"github.com/kunduk1/manage-task-service/internal/config/mysql"
 	"github.com/kunduk1/manage-task-service/internal/config/redis"
 )
 
 type HTTPConfig interface {
+	Address() string
+}
+
+type MetricsConfig interface {
 	Address() string
 }
 
@@ -49,11 +54,12 @@ type LoggerConfig interface {
 }
 
 type Config struct {
-	HTTP   HTTPConfig
-	MySQL  MySQLConfig
-	Redis  RedisConfig
-	JWT    JWTConfig
-	Logger LoggerConfig
+	HTTP    HTTPConfig
+	Metrics MetricsConfig
+	MySQL   MySQLConfig
+	Redis   RedisConfig
+	JWT     JWTConfig
+	Logger  LoggerConfig
 }
 
 // Load читает переменные окружения
@@ -73,10 +79,11 @@ func Load(path string) (*Config, error) {
 	}
 
 	return &Config{
-		HTTP:   http.New(),
-		MySQL:  mysql.New(),
-		Redis:  redis.New(),
-		JWT:    jwtCfg,
-		Logger: logger.New(),
+		HTTP:    http.New(),
+		Metrics: metricscfg.New(),
+		MySQL:   mysql.New(),
+		Redis:   redis.New(),
+		JWT:     jwtCfg,
+		Logger:  logger.New(),
 	}, nil
 }

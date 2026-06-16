@@ -14,6 +14,7 @@ import (
 	"github.com/kunduk1/manage-task-service/internal/clients/db/transaction"
 	"github.com/kunduk1/manage-task-service/internal/closer"
 	"github.com/kunduk1/manage-task-service/internal/config"
+	"github.com/kunduk1/manage-task-service/internal/metrics"
 	"github.com/kunduk1/manage-task-service/internal/repository"
 	taskRepo "github.com/kunduk1/manage-task-service/internal/repository/task"
 	taskCacheRepo "github.com/kunduk1/manage-task-service/internal/repository/taskcache"
@@ -42,6 +43,8 @@ type serviceProvider struct {
 	taskRepository        repository.TaskRepository
 	taskCacheRepository   repository.TaskCacheRepository
 	taskHistoryRepository repository.TaskHistoryRepository
+
+	metrics *metrics.Metrics
 
 	jwtManager  *token.Manager
 	authService service.AuthService
@@ -104,6 +107,13 @@ func (s *serviceProvider) TokenRepository(ctx context.Context) repository.TokenR
 		s.tokenRepository = tokenRepo.NewRepository(s.CacheClient(ctx))
 	}
 	return s.tokenRepository
+}
+
+func (s *serviceProvider) Metrics() *metrics.Metrics {
+	if s.metrics == nil {
+		s.metrics = metrics.New()
+	}
+	return s.metrics
 }
 
 func (s *serviceProvider) JWTManager() *token.Manager {
