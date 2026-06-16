@@ -77,6 +77,158 @@
                 },
                 "type": "object"
             },
+            "github_com_kunduk1_manage-task-service_pkg_task_v1.CreateTaskRequest": {
+                "properties": {
+                    "assignee_id": {
+                        "example": 5,
+                        "type": "integer"
+                    },
+                    "description": {
+                        "example": "Document the tasks API",
+                        "type": "string"
+                    },
+                    "status": {
+                        "example": "todo",
+                        "type": "string"
+                    },
+                    "team_id": {
+                        "example": 1,
+                        "type": "integer"
+                    },
+                    "title": {
+                        "example": "Write docs",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_kunduk1_manage-task-service_pkg_task_v1.ListTasksResponse": {
+                "properties": {
+                    "limit": {
+                        "example": 20,
+                        "type": "integer"
+                    },
+                    "offset": {
+                        "example": 0,
+                        "type": "integer"
+                    },
+                    "tasks": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_pkg_task_v1.TaskResponse"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_kunduk1_manage-task-service_pkg_task_v1.TaskHistoryEntryResponse": {
+                "properties": {
+                    "changed_at": {
+                        "example": "2026-06-16T12:00:00Z",
+                        "type": "string"
+                    },
+                    "changed_by": {
+                        "example": 42,
+                        "type": "integer"
+                    },
+                    "field": {
+                        "example": "status",
+                        "type": "string"
+                    },
+                    "id": {
+                        "example": 1,
+                        "type": "integer"
+                    },
+                    "new_value": {
+                        "example": "in_progress",
+                        "type": "string"
+                    },
+                    "old_value": {
+                        "example": "todo",
+                        "type": "string"
+                    },
+                    "task_id": {
+                        "example": 1,
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_kunduk1_manage-task-service_pkg_task_v1.TaskHistoryResponse": {
+                "properties": {
+                    "entries": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_pkg_task_v1.TaskHistoryEntryResponse"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_kunduk1_manage-task-service_pkg_task_v1.TaskResponse": {
+                "properties": {
+                    "assignee_id": {
+                        "example": 5,
+                        "type": "integer"
+                    },
+                    "created_at": {
+                        "example": "2026-06-16T12:00:00Z",
+                        "type": "string"
+                    },
+                    "created_by": {
+                        "example": 42,
+                        "type": "integer"
+                    },
+                    "description": {
+                        "example": "Document the tasks API",
+                        "type": "string"
+                    },
+                    "id": {
+                        "example": 1,
+                        "type": "integer"
+                    },
+                    "status": {
+                        "example": "todo",
+                        "type": "string"
+                    },
+                    "team_id": {
+                        "example": 1,
+                        "type": "integer"
+                    },
+                    "title": {
+                        "example": "Write docs",
+                        "type": "string"
+                    },
+                    "updated_at": {
+                        "example": "2026-06-16T12:00:00Z",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_kunduk1_manage-task-service_pkg_task_v1.UpdateTaskRequest": {
+                "properties": {
+                    "assignee_id": {
+                        "example": 5,
+                        "type": "integer"
+                    },
+                    "description": {
+                        "example": "Updated description",
+                        "type": "string"
+                    },
+                    "status": {
+                        "example": "in_progress",
+                        "type": "string"
+                    },
+                    "title": {
+                        "example": "New title",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "github_com_kunduk1_manage-task-service_pkg_team_v1.CreateTeamRequest": {
                 "properties": {
                     "description": {
@@ -302,6 +454,375 @@
                 "summary": "Register a new user",
                 "tags": [
                     "auth"
+                ]
+            }
+        },
+        "/tasks": {
+            "get": {
+                "description": "Lists a team's tasks with optional status/assignee filters and pagination. Caller must be a team member.",
+                "parameters": [
+                    {
+                        "description": "team id",
+                        "in": "query",
+                        "name": "team_id",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "filter by status (todo, in_progress, done)",
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "filter by assignee id",
+                        "in": "query",
+                        "name": "assignee_id",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "page size (default 20, max 100)",
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "page offset (default 0)",
+                        "in": "query",
+                        "name": "offset",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_pkg_task_v1.ListTasksResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "List tasks",
+                "tags": [
+                    "tasks"
+                ]
+            },
+            "post": {
+                "description": "Creates a task in a team. Only a member of the team may create. Status defaults to todo.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_pkg_task_v1.CreateTaskRequest"
+                            }
+                        }
+                    },
+                    "description": "task payload",
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_pkg_task_v1.TaskResponse"
+                                }
+                            }
+                        },
+                        "description": "Created"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Create a task",
+                "tags": [
+                    "tasks"
+                ]
+            }
+        },
+        "/tasks/{id}": {
+            "put": {
+                "description": "Partially updates a task (only provided fields change; assignee_id=0 unassigns). Allowed for the creator, current assignee, or team owner/admin. Records field-level history.",
+                "parameters": [
+                    {
+                        "description": "task id",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_pkg_task_v1.UpdateTaskRequest"
+                            }
+                        }
+                    },
+                    "description": "fields to update",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_pkg_task_v1.TaskResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Update a task",
+                "tags": [
+                    "tasks"
+                ]
+            }
+        },
+        "/tasks/{id}/history": {
+            "get": {
+                "description": "Returns the task's field-level change history, newest first. Caller must be a team member.",
+                "parameters": [
+                    {
+                        "description": "task id",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_pkg_task_v1.TaskHistoryResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Task change history",
+                "tags": [
+                    "tasks"
                 ]
             }
         },

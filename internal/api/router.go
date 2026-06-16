@@ -11,12 +11,13 @@ import (
 
 	"github.com/kunduk1/manage-task-service/docs"
 	authapi "github.com/kunduk1/manage-task-service/internal/api/auth"
+	taskapi "github.com/kunduk1/manage-task-service/internal/api/task"
 	teamapi "github.com/kunduk1/manage-task-service/internal/api/team"
 	"github.com/kunduk1/manage-task-service/internal/token"
 	"github.com/kunduk1/manage-task-service/internal/transport/middleware"
 )
 
-func NewRouter(authHandler *authapi.Handler, teamHandler *teamapi.Handler, jwtManager *token.Manager) http.Handler {
+func NewRouter(authHandler *authapi.Handler, teamHandler *teamapi.Handler, taskHandler *taskapi.Handler, jwtManager *token.Manager) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -54,6 +55,11 @@ func NewRouter(authHandler *authapi.Handler, teamHandler *teamapi.Handler, jwtMa
 			r.Post("/teams", teamHandler.Create)
 			r.Get("/teams", teamHandler.List)
 			r.Post("/teams/{id}/invite", teamHandler.Invite)
+
+			r.Post("/tasks", taskHandler.Create)
+			r.Get("/tasks", taskHandler.List)
+			r.Put("/tasks/{id}", taskHandler.Update)
+			r.Get("/tasks/{id}/history", taskHandler.History)
 		})
 	})
 

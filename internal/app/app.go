@@ -96,6 +96,7 @@ func (a *App) initHTTPServer(ctx context.Context) error {
 		Handler: api.NewRouter(
 			a.serviceProvider.AuthHandler(ctx),
 			a.serviceProvider.TeamHandler(ctx),
+			a.serviceProvider.TaskHandler(ctx),
 			a.serviceProvider.JWTManager(),
 		),
 		ReadHeaderTimeout: 15 * time.Second,

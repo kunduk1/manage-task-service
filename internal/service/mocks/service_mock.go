@@ -138,3 +138,87 @@ func (mr *MockTeamsServiceMockRecorder) List(ctx, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockTeamsService)(nil).List), ctx, userID)
 }
+
+// MockTasksService is a mock of TasksService interface.
+type MockTasksService struct {
+	ctrl     *gomock.Controller
+	recorder *MockTasksServiceMockRecorder
+	isgomock struct{}
+}
+
+// MockTasksServiceMockRecorder is the mock recorder for MockTasksService.
+type MockTasksServiceMockRecorder struct {
+	mock *MockTasksService
+}
+
+// NewMockTasksService creates a new mock instance.
+func NewMockTasksService(ctrl *gomock.Controller) *MockTasksService {
+	mock := &MockTasksService{ctrl: ctrl}
+	mock.recorder = &MockTasksServiceMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockTasksService) EXPECT() *MockTasksServiceMockRecorder {
+	return m.recorder
+}
+
+// Create mocks base method.
+func (m *MockTasksService) Create(ctx context.Context, in model.CreateTaskInput) (*model.Task, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Create", ctx, in)
+	ret0, _ := ret[0].(*model.Task)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Create indicates an expected call of Create.
+func (mr *MockTasksServiceMockRecorder) Create(ctx, in any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockTasksService)(nil).Create), ctx, in)
+}
+
+// History mocks base method.
+func (m *MockTasksService) History(ctx context.Context, in model.TaskHistoryQuery) ([]model.TaskHistoryEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "History", ctx, in)
+	ret0, _ := ret[0].([]model.TaskHistoryEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// History indicates an expected call of History.
+func (mr *MockTasksServiceMockRecorder) History(ctx, in any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "History", reflect.TypeOf((*MockTasksService)(nil).History), ctx, in)
+}
+
+// List mocks base method.
+func (m *MockTasksService) List(ctx context.Context, in model.TaskListQuery) ([]model.Task, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "List", ctx, in)
+	ret0, _ := ret[0].([]model.Task)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// List indicates an expected call of List.
+func (mr *MockTasksServiceMockRecorder) List(ctx, in any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockTasksService)(nil).List), ctx, in)
+}
+
+// Update mocks base method.
+func (m *MockTasksService) Update(ctx context.Context, in model.UpdateTaskInput) (*model.Task, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, in)
+	ret0, _ := ret[0].(*model.Task)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockTasksServiceMockRecorder) Update(ctx, in any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockTasksService)(nil).Update), ctx, in)
+}

@@ -20,6 +20,8 @@ func ServiceError(w http.ResponseWriter, err error) {
 		Error(w, http.StatusForbidden, "forbidden")
 	case stderrors.Is(err, errors.ErrTeamNotFound):
 		Error(w, http.StatusNotFound, "team not found")
+	case stderrors.Is(err, errors.ErrTaskNotFound):
+		Error(w, http.StatusNotFound, "task not found")
 	case stderrors.Is(err, errors.ErrUserNotFound):
 		Error(w, http.StatusNotFound, "user not found")
 	case stderrors.Is(err, errors.ErrMemberExists):
