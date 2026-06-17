@@ -2,11 +2,12 @@
 # Проверка НЕ блокирующая — см. job "Coverage" в .github/workflows/ci.yml.
 profile: coverage.out
 
-# Порог считаем только по слоям, где юнит-тест — правильный инструмент:
-# service (бизнес-логика), token, api (хендлеры), transport
-# (response + middleware/auth). Инфраструктуру и чистые мапперы (converter)
-# исключаем — там нужны интеграционные тесты (БД/Redis) либо это
-# тривиальная проводка/геттеры/маппинг полей.
+# Порог считаем только по корневой бизнес-логике, где юнит-тест — правильный
+# инструмент: service (бизнес-логика), token, api (хендлеры), transport
+# (response + middleware/auth). Исключаем: чистые мапперы (converter),
+# инфраструктуру/проводку (нужны интеграционные тесты БД/Redis либо это
+# тривиальная проводка/геттеры/маппинг), cross-cutting инфра
+# и dev-инструменты.
 # Пути в профиле — относительно корня модуля (без ведущего "/"), поэтому
 # каталоги/файлы якорим через "^".
 exclude:
@@ -27,6 +28,13 @@ exclude:
     - ^internal/transport/middleware/logger\.go$    # логирующая mw (auth.go остаётся в scope)
     - ^internal/transport/request/                  # тонкий decode-хелпер
     - ^tools/
+    # --- cross-cutting инфраструктура: не «корневая» бизнес-логика ---
+    - ^internal/metrics/                            # observability: реестр Prometheus + HTTP-обёртки
+    - ^internal/ratelimit/                          # лимитер поверх Redis (cache.Client) → инфра
+    - ^internal/circuitbreaker/                     # generic resilience-примитив, не доменная логика
+    - ^internal/transport/middleware/metrics\.go$   # glue для metrics (auth.go остаётся в scope)
+    - ^internal/transport/middleware/ratelimit\.go$ # glue для ratelimit
+    - ^internal/seed/                               # dev-фикстуры (cmd/seed уже под ^cmd/)
 
 threshold:
   total: 85
