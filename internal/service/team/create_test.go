@@ -12,7 +12,7 @@ import (
 )
 
 func TestCreate_Success(t *testing.T) {
-	svc, teamRepo, _, txm := newTestService(t)
+	svc, teamRepo, _, txm, _ := newTestService(t)
 
 	runTx(txm)
 	gomock.InOrder(
@@ -48,7 +48,7 @@ func TestCreate_Success(t *testing.T) {
 
 func TestCreate_Validation(t *testing.T) {
 	// Пустое имя отсекается до транзакции — никаких EXPECT.
-	svc, _, _, _ := newTestService(t)
+	svc, _, _, _, _ := newTestService(t)
 
 	_, err := svc.Create(context.Background(), model.CreateTeamInput{Name: "   ", OwnerID: 1})
 	if !stderrors.Is(err, errors.ErrValidation) {
@@ -58,7 +58,7 @@ func TestCreate_Validation(t *testing.T) {
 
 func TestCreate_AddMemberError(t *testing.T) {
 	// Падение второй вставки в транзакции пробрасывается, команда не перечитывается.
-	svc, teamRepo, _, txm := newTestService(t)
+	svc, teamRepo, _, txm, _ := newTestService(t)
 	errDB := stderrors.New("insert failed")
 
 	runTx(txm)

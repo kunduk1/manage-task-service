@@ -1,18 +1,19 @@
-// Package team реализует бизнес-логику управления командами.
 package team
 
 import (
 	"github.com/kunduk1/manage-task-service/internal/clients/db"
+	"github.com/kunduk1/manage-task-service/internal/clients/email"
 	"github.com/kunduk1/manage-task-service/internal/repository"
 	"github.com/kunduk1/manage-task-service/internal/service"
 	"github.com/kunduk1/manage-task-service/internal/service/authz"
 )
 
 type serv struct {
-	teamRepo  repository.TeamRepository
-	userRepo  repository.UserRepository
-	txManager db.TxManager
-	authz     *authz.Authorizer
+	teamRepo    repository.TeamRepository
+	userRepo    repository.UserRepository
+	txManager   db.TxManager
+	authz       *authz.Authorizer
+	emailClient email.Client // почтовый клиент за брейкером; может быть nil, если фича выключена
 }
 
 func NewService(
@@ -20,11 +21,13 @@ func NewService(
 	userRepo repository.UserRepository,
 	txManager db.TxManager,
 	authorizer *authz.Authorizer,
+	emailClient email.Client,
 ) service.TeamsService {
 	return &serv{
-		teamRepo:  teamRepo,
-		userRepo:  userRepo,
-		txManager: txManager,
-		authz:     authorizer,
+		teamRepo:    teamRepo,
+		userRepo:    userRepo,
+		txManager:   txManager,
+		authz:       authorizer,
+		emailClient: emailClient,
 	}
 }

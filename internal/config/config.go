@@ -7,6 +7,8 @@ import (
 
 	"github.com/joho/godotenv"
 
+	cbcfg "github.com/kunduk1/manage-task-service/internal/config/circuitbreaker"
+	emailcfg "github.com/kunduk1/manage-task-service/internal/config/email"
 	"github.com/kunduk1/manage-task-service/internal/config/http"
 	"github.com/kunduk1/manage-task-service/internal/config/jwt"
 	"github.com/kunduk1/manage-task-service/internal/config/logger"
@@ -52,6 +54,18 @@ type RateLimitConfig interface {
 	Window() time.Duration
 }
 
+type CircuitBreakerConfig interface {
+	MaxFailures() int
+	OpenTimeout() time.Duration
+	HalfOpenMax() int
+}
+
+type EmailConfig interface {
+	Enabled() bool
+	FailRate() float64
+	Latency() time.Duration
+}
+
 type LoggerConfig interface {
 	Level() string
 	LogPath() string
@@ -61,13 +75,15 @@ type LoggerConfig interface {
 }
 
 type Config struct {
-	HTTP      HTTPConfig
-	Metrics   MetricsConfig
-	MySQL     MySQLConfig
-	Redis     RedisConfig
-	JWT       JWTConfig
-	Logger    LoggerConfig
-	RateLimit RateLimitConfig
+	HTTP           HTTPConfig
+	Metrics        MetricsConfig
+	MySQL          MySQLConfig
+	Redis          RedisConfig
+	JWT            JWTConfig
+	Logger         LoggerConfig
+	RateLimit      RateLimitConfig
+	CircuitBreaker CircuitBreakerConfig
+	Email          EmailConfig
 }
 
 // Load читает переменные окружения
@@ -87,12 +103,14 @@ func Load(path string) (*Config, error) {
 	}
 
 	return &Config{
-		HTTP:      http.New(),
-		Metrics:   metricscfg.New(),
-		MySQL:     mysql.New(),
-		Redis:     redis.New(),
-		JWT:       jwtCfg,
-		Logger:    logger.New(),
-		RateLimit: ratelimit.New(),
+		HTTP:           http.New(),
+		Metrics:        metricscfg.New(),
+		MySQL:          mysql.New(),
+		Redis:          redis.New(),
+		JWT:            jwtCfg,
+		Logger:         logger.New(),
+		RateLimit:      ratelimit.New(),
+		CircuitBreaker: cbcfg.New(),
+		Email:          emailcfg.New(),
 	}, nil
 }

@@ -10,7 +10,7 @@ import (
 )
 
 func TestList_PassThrough(t *testing.T) {
-	svc, teamRepo, _, _ := newTestService(t)
+	svc, teamRepo, _, _, _ := newTestService(t)
 	want := []model.Team{{ID: 1, Name: "A"}, {ID: 2, Name: "B"}}
 
 	teamRepo.EXPECT().ListByUser(gomock.Any(), int64(5)).Return(want, nil)

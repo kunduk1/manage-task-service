@@ -7,13 +7,17 @@ import (
 	authapi "github.com/kunduk1/manage-task-service/internal/api/auth"
 	taskapi "github.com/kunduk1/manage-task-service/internal/api/task"
 	teamapi "github.com/kunduk1/manage-task-service/internal/api/team"
+	"github.com/kunduk1/manage-task-service/internal/circuitbreaker"
 	"github.com/kunduk1/manage-task-service/internal/clients/cache"
 	redisCache "github.com/kunduk1/manage-task-service/internal/clients/cache/redis"
 	"github.com/kunduk1/manage-task-service/internal/clients/db"
 	"github.com/kunduk1/manage-task-service/internal/clients/db/mysql"
 	"github.com/kunduk1/manage-task-service/internal/clients/db/transaction"
+	"github.com/kunduk1/manage-task-service/internal/clients/email"
+	emailmock "github.com/kunduk1/manage-task-service/internal/clients/email/mock"
 	"github.com/kunduk1/manage-task-service/internal/closer"
 	"github.com/kunduk1/manage-task-service/internal/config"
+	"github.com/kunduk1/manage-task-service/internal/logger"
 	"github.com/kunduk1/manage-task-service/internal/metrics"
 	"github.com/kunduk1/manage-task-service/internal/ratelimit"
 	"github.com/kunduk1/manage-task-service/internal/repository"
@@ -29,6 +33,8 @@ import (
 	taskService "github.com/kunduk1/manage-task-service/internal/service/task"
 	teamService "github.com/kunduk1/manage-task-service/internal/service/team"
 	"github.com/kunduk1/manage-task-service/internal/token"
+
+	"go.uber.org/zap"
 )
 
 // serviceProvider — ленивый DI-контейнер: создаёт зависимости по требованию и кэширует их.
@@ -48,6 +54,7 @@ type serviceProvider struct {
 
 	metrics     *metrics.Metrics
 	rateLimiter *ratelimit.Limiter
+	emailClient email.Client
 
 	jwtManager  *token.Manager
 	authorizer  *authz.Authorizer
@@ -176,6 +183,38 @@ func (s *serviceProvider) Authorizer(ctx context.Context) *authz.Authorizer {
 	return s.authorizer
 }
 
+func (s *serviceProvider) newBreaker(name string) *circuitbreaker.Breaker {
+	m := s.Metrics()
+	return circuitbreaker.New(circuitbreaker.Settings{
+		Name:        name,
+		MaxFailures: s.cfg.CircuitBreaker.MaxFailures(),
+		OpenTimeout: s.cfg.CircuitBreaker.OpenTimeout(),
+		HalfOpenMax: s.cfg.CircuitBreaker.HalfOpenMax(),
+		OnStateChange: func(name string, from, to circuitbreaker.State) {
+			logger.Warn("circuit breaker state change",
+				zap.String("breaker", name),
+				zap.String("from", from.String()),
+				zap.String("to", to.String()),
+			)
+			m.SetCircuitBreakerState(name, int(to))
+		},
+	})
+}
+
+// EmailClient возвращает почтовый клиент за брейкером или nil, если фича
+// выключена (тогда сервис приглашений просто пропускает отправку письма).
+func (s *serviceProvider) EmailClient(ctx context.Context) email.Client {
+	if !s.cfg.Email.Enabled() {
+		return nil
+	}
+	if s.emailClient == nil {
+		cl := email.NewCircuitBreaker(emailmock.NewSender(s.cfg.Email), s.newBreaker("email"))
+		closer.Add(cl.Close)
+		s.emailClient = cl
+	}
+	return s.emailClient
+}
+
 func (s *serviceProvider) TeamService(ctx context.Context) service.TeamsService {
 	if s.teamService == nil {
 		s.teamService = teamService.NewService(
@@ -183,6 +222,7 @@ func (s *serviceProvider) TeamService(ctx context.Context) service.TeamsService 
 			s.UserRepository(ctx),
 			s.TxManager(ctx),
 			s.Authorizer(ctx),
+			s.EmailClient(ctx),
 		)
 	}
 	return s.teamService

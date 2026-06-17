@@ -14,4 +14,5 @@ var (
 	ErrMemberExists         = errors.New("team member already exists")
 	ErrNotTeamMember        = errors.New("user is not a team member")
 	ErrForbidden            = errors.New("forbidden")
+	ErrEmailUnavailable     = errors.New("email service unavailable")
 )

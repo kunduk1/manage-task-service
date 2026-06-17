@@ -11,10 +11,11 @@ import (
 )
 
 type Metrics struct {
-	registry        *prometheus.Registry
-	requestsTotal   *prometheus.CounterVec
-	errorsTotal     *prometheus.CounterVec
-	requestDuration *prometheus.HistogramVec
+	registry            *prometheus.Registry
+	requestsTotal       *prometheus.CounterVec
+	errorsTotal         *prometheus.CounterVec
+	requestDuration     *prometheus.HistogramVec
+	circuitBreakerState *prometheus.GaugeVec
 }
 
 // New создаёт реестр, регистрирует HTTP-коллекторы, а также
@@ -37,12 +38,17 @@ func New() *Metrics {
 			Help:    "Время ответа на HTTP-запрос в секундах.",
 			Buckets: prometheus.DefBuckets,
 		}, labels),
+		circuitBreakerState: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "circuit_breaker_state",
+			Help: "Состояние брейкера по имени: 0=closed, 1=open, 2=half-open.",
+		}, []string{"name"}),
 	}
 
 	m.registry.MustRegister(
 		m.requestsTotal,
 		m.errorsTotal,
 		m.requestDuration,
+		m.circuitBreakerState,
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
@@ -65,6 +71,12 @@ func (m *Metrics) ObserveRequest(method, path string, status int, dur time.Durat
 	if status >= http.StatusInternalServerError {
 		m.errorsTotal.WithLabelValues(method, path, statusStr).Inc()
 	}
+}
+
+// SetCircuitBreakerState выставляет текущее состояние брейкера name
+// (0=closed, 1=open, 2=half-open).
+func (m *Metrics) SetCircuitBreakerState(name string, state int) {
+	m.circuitBreakerState.WithLabelValues(name).Set(float64(state))
 }
 
 // Handler отдаёт HTTP-обработчик для эндпоинта /metrics.
