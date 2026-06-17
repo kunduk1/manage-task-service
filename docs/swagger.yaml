@@ -286,9 +286,9 @@ components:
       type: object
   securitySchemes:
     BearerAuth:
-      in: header
-      name: Authorization
-      type: apiKey
+      bearerFormat: JWT
+      scheme: bearer
+      type: http
 externalDocs:
   description: ""
   url: ""

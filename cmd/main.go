@@ -17,6 +17,9 @@ import (
 // вышел бы относительным и импортёры (Postman) роняли бы префикс /api/v1.
 // @host            http://localhost:8080
 // @BasePath        /api/v1
+// swag умеет только apiKey/basic/oauth2, поэтому JWT описан как apiKey-заголовок;
+// tools/swagfix переписывает его в http/bearer-схему (иначе Postman импортит как
+// "API Key" и шлёт токен без префикса "Bearer " → 401). См. tools/swagfix/main.go.
 // @securityDefinitions.apikey  BearerAuth
 // @in                          header
 // @name                        Authorization

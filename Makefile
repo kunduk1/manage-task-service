@@ -1,4 +1,4 @@
-.PHONY: run build tidy test test-integration cover vet lint lint-fix swagger mocks generate bin-deps compose-up compose-down migrate-up docker-build
+.PHONY: run build tidy test test-integration cover vet lint lint-fix swagger mocks generate bin-deps compose-up compose-down migrate-up docker-build seed
 
 APP_NAME                  := manage-task-service
 CONFIG                    := local.env
@@ -15,6 +15,11 @@ COVER_FLAGS ?=
 
 run:
 	go run ./cmd -config-path $(CONFIG)
+
+# Наполняет dev-БД детерминированными фикстурами (см. internal/seed). -reset стирает
+# существующие данные перед сидированием. Нужна запущенная MySQL (make compose-up).
+seed:
+	go run ./cmd/seed -config-path $(CONFIG) -reset
 
 build:
 	go build -o bin/$(APP_NAME) ./cmd
