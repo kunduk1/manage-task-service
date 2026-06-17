@@ -12,6 +12,7 @@ package mocks
 import (
 	context "context"
 	reflect "reflect"
+	time "time"
 
 	model "github.com/kunduk1/manage-task-service/internal/model"
 	gomock "go.uber.org/mock/gomock"
@@ -139,6 +140,36 @@ func (mr *MockTeamsServiceMockRecorder) List(ctx, userID any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockTeamsService)(nil).List), ctx, userID)
 }
 
+// Stats mocks base method.
+func (m *MockTeamsService) Stats(ctx context.Context) ([]model.TeamStats, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Stats", ctx)
+	ret0, _ := ret[0].([]model.TeamStats)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Stats indicates an expected call of Stats.
+func (mr *MockTeamsServiceMockRecorder) Stats(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stats", reflect.TypeOf((*MockTeamsService)(nil).Stats), ctx)
+}
+
+// TopCreators mocks base method.
+func (m *MockTeamsService) TopCreators(ctx context.Context, from, to time.Time) ([]model.TopCreator, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TopCreators", ctx, from, to)
+	ret0, _ := ret[0].([]model.TopCreator)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// TopCreators indicates an expected call of TopCreators.
+func (mr *MockTeamsServiceMockRecorder) TopCreators(ctx, from, to any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TopCreators", reflect.TypeOf((*MockTeamsService)(nil).TopCreators), ctx, from, to)
+}
+
 // MockTasksService is a mock of TasksService interface.
 type MockTasksService struct {
 	ctrl     *gomock.Controller
@@ -206,6 +237,21 @@ func (m *MockTasksService) List(ctx context.Context, in model.TaskListQuery) ([]
 func (mr *MockTasksServiceMockRecorder) List(ctx, in any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockTasksService)(nil).List), ctx, in)
+}
+
+// Misassigned mocks base method.
+func (m *MockTasksService) Misassigned(ctx context.Context) ([]model.Task, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Misassigned", ctx)
+	ret0, _ := ret[0].([]model.Task)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Misassigned indicates an expected call of Misassigned.
+func (mr *MockTasksServiceMockRecorder) Misassigned(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Misassigned", reflect.TypeOf((*MockTasksService)(nil).Misassigned), ctx)
 }
 
 // Update mocks base method.

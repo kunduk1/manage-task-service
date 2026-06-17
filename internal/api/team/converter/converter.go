@@ -54,3 +54,30 @@ func ToInviteResponse(in model.InviteInput) teamv1.InviteResponse {
 		Role:   string(in.Role),
 	}
 }
+
+func ToTeamStatsResponses(stats []model.TeamStats) []teamv1.TeamStatItem {
+	out := make([]teamv1.TeamStatItem, 0, len(stats))
+	for i := range stats {
+		out = append(out, teamv1.TeamStatItem{
+			TeamID:        stats[i].TeamID,
+			Name:          stats[i].Name,
+			MemberCount:   stats[i].MemberCount,
+			DoneLast7Days: stats[i].DoneLast7Days,
+		})
+	}
+	return out
+}
+
+func ToTopCreatorResponses(creators []model.TopCreator) []teamv1.TopCreatorItem {
+	out := make([]teamv1.TopCreatorItem, 0, len(creators))
+	for i := range creators {
+		out = append(out, teamv1.TopCreatorItem{
+			TeamID:       creators[i].TeamID,
+			UserID:       creators[i].UserID,
+			UserName:     creators[i].UserName,
+			CreatedCount: creators[i].CreatedCount,
+			Rank:         creators[i].Rank,
+		})
+	}
+	return out
+}

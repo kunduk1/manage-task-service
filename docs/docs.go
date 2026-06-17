@@ -129,6 +129,18 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
+            "github_com_kunduk1_manage-task-service_pkg_task_v1.MisassignedTasksResponse": {
+                "properties": {
+                    "tasks": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_pkg_task_v1.TaskResponse"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "type": "object"
+            },
             "github_com_kunduk1_manage-task-service_pkg_task_v1.TaskHistoryEntryResponse": {
                 "properties": {
                     "changed_at": {
@@ -315,6 +327,84 @@ const docTemplate = `{
                     },
                     "updated_at": {
                         "example": "2026-06-16T12:00:00Z",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_kunduk1_manage-task-service_pkg_team_v1.TeamStatItem": {
+                "properties": {
+                    "done_last_7_days": {
+                        "example": 12,
+                        "type": "integer"
+                    },
+                    "member_count": {
+                        "example": 5,
+                        "type": "integer"
+                    },
+                    "name": {
+                        "example": "Platform",
+                        "type": "string"
+                    },
+                    "team_id": {
+                        "example": 1,
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_kunduk1_manage-task-service_pkg_team_v1.TeamStatsResponse": {
+                "properties": {
+                    "stats": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_pkg_team_v1.TeamStatItem"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_kunduk1_manage-task-service_pkg_team_v1.TopCreatorItem": {
+                "properties": {
+                    "created_count": {
+                        "example": 7,
+                        "type": "integer"
+                    },
+                    "rank": {
+                        "example": 1,
+                        "type": "integer"
+                    },
+                    "team_id": {
+                        "example": 1,
+                        "type": "integer"
+                    },
+                    "user_id": {
+                        "example": 42,
+                        "type": "integer"
+                    },
+                    "user_name": {
+                        "example": "Alice",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "github_com_kunduk1_manage-task-service_pkg_team_v1.TopCreatorsResponse": {
+                "properties": {
+                    "creators": {
+                        "items": {
+                            "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_pkg_team_v1.TopCreatorItem"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "from": {
+                        "example": "2026-05-18T00:00:00Z",
+                        "type": "string"
+                    },
+                    "to": {
+                        "example": "2026-06-17T00:00:00Z",
                         "type": "string"
                     }
                 },
@@ -674,6 +764,52 @@ const docTemplate = `{
                 ]
             }
         },
+        "/tasks/misassigned": {
+            "get": {
+                "description": "Integrity check: returns tasks whose assignee is not a member of the task's team.",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_pkg_task_v1.MisassignedTasksResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Misassigned tasks",
+                "tags": [
+                    "tasks"
+                ]
+            }
+        },
         "/tasks/{id}": {
             "put": {
                 "description": "Partially updates a task (only provided fields change; assignee_id=0 unassigns). Allowed for the creator, current assignee, or team owner/admin. Records field-level history.",
@@ -983,6 +1119,126 @@ const docTemplate = `{
                     }
                 ],
                 "summary": "Create a team",
+                "tags": [
+                    "teams"
+                ]
+            }
+        },
+        "/teams/stats": {
+            "get": {
+                "description": "Returns, for every team, its name, member count and number of tasks moved to done in the last 7 days.",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_pkg_team_v1.TeamStatsResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Team stats",
+                "tags": [
+                    "teams"
+                ]
+            }
+        },
+        "/teams/top-creators": {
+            "get": {
+                "description": "Returns the top-3 task creators in each team over the given period. Defaults to the last 30 days.",
+                "parameters": [
+                    {
+                        "description": "period start, RFC3339 (default now-30d)",
+                        "in": "query",
+                        "name": "from",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "period end, RFC3339 (default now)",
+                        "in": "query",
+                        "name": "to",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_pkg_team_v1.TopCreatorsResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_kunduk1_manage-task-service_internal_transport_response.ErrorBody"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Top task creators per team",
                 "tags": [
                     "teams"
                 ]

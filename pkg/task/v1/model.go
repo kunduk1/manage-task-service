@@ -50,3 +50,7 @@ type TaskHistoryEntryResponse struct {
 type TaskHistoryResponse struct {
 	Entries []TaskHistoryEntryResponse `json:"entries"`
 }
+
+type MisassignedTasksResponse struct {
+	Tasks []TaskResponse `json:"tasks"`
+}

@@ -60,10 +60,13 @@ func NewRouter(authHandler *authapi.Handler, teamHandler *teamapi.Handler, taskH
 
 			r.Post("/teams", teamHandler.Create)
 			r.Get("/teams", teamHandler.List)
+			r.Get("/teams/stats", teamHandler.Stats)
+			r.Get("/teams/top-creators", teamHandler.TopCreators)
 			r.Post("/teams/{id}/invite", teamHandler.Invite)
 
 			r.Post("/tasks", taskHandler.Create)
 			r.Get("/tasks", taskHandler.List)
+			r.Get("/tasks/misassigned", taskHandler.Misassigned)
 			r.Put("/tasks/{id}", taskHandler.Update)
 			r.Get("/tasks/{id}/history", taskHandler.History)
 		})
