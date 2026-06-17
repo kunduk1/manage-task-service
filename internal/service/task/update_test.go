@@ -2,6 +2,7 @@ package task
 
 import (
 	"context"
+	stderrors "errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -102,4 +103,128 @@ func TestUpdate_InvalidStatus(t *testing.T) {
 		ActorID: 42, TaskID: 10, Status: ptrStatus(model.TaskStatus("bogus")),
 	})
 	assert.ErrorIs(t, err, errors.ErrValidation)
+}
+
+func TestUpdate_EmptyTitle(t *testing.T) {
+	// Owner вправе обновлять, но пустой title после trim — ErrValidation (до транзакции).
+	svc, taskRepo, _, teamRepo, _, _ := newTestService(t)
+
+	cur := &model.Task{ID: 10, TeamID: 1, Title: "T", Status: model.StatusTodo, CreatedBy: 1}
+	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).Return(cur, nil)
+	teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(99)).Return(model.RoleOwner, nil)
+
+	_, err := svc.Update(context.Background(), model.UpdateTaskInput{
+		ActorID: 99, TaskID: 10, Title: strPtr("   "),
+	})
+	assert.ErrorIs(t, err, errors.ErrValidation)
+}
+
+func TestUpdate_UnassignRecordsHistory(t *testing.T) {
+	// Снятие исполнителя (assignee_id<=0) пишет историю old=<id>, new=nil.
+	svc, taskRepo, historyRepo, teamRepo, txm, cacheRepo := newTestService(t)
+
+	cur := &model.Task{ID: 10, TeamID: 1, Title: "T", Status: model.StatusTodo, CreatedBy: 1, AssigneeID: ptrInt64(7)}
+	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).Return(cur, nil)
+	teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(99)).Return(model.RoleOwner, nil)
+
+	runTx(txm)
+	taskRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, tk *model.Task) error {
+			assert.Nil(t, tk.AssigneeID)
+			return nil
+		})
+	historyRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, e *model.TaskHistoryEntry) (int64, error) {
+			assert.Equal(t, "assignee_id", e.Field)
+			require.NotNil(t, e.OldValue)
+			assert.Equal(t, "7", *e.OldValue)
+			assert.Nil(t, e.NewValue)
+			return int64(1), nil
+		})
+	cacheRepo.EXPECT().InvalidateTeam(gomock.Any(), int64(1)).Return(nil)
+	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).Return(cur, nil)
+
+	_, err := svc.Update(context.Background(), model.UpdateTaskInput{
+		ActorID: 99, TaskID: 10, AssigneeID: ptrInt64(0),
+	})
+	require.NoError(t, err)
+}
+
+func TestUpdate_AssignToNonMember(t *testing.T) {
+	// Нельзя назначить исполнителем не-члена команды → ErrValidation.
+	svc, taskRepo, _, teamRepo, _, _ := newTestService(t)
+
+	cur := &model.Task{ID: 10, TeamID: 1, Title: "T", Status: model.StatusTodo, CreatedBy: 1}
+	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).Return(cur, nil)
+	teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(99)).Return(model.RoleOwner, nil)
+	teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(8)).
+		Return(model.TeamRole(""), errors.ErrNotTeamMember)
+
+	_, err := svc.Update(context.Background(), model.UpdateTaskInput{
+		ActorID: 99, TaskID: 10, AssigneeID: ptrInt64(8),
+	})
+	assert.ErrorIs(t, err, errors.ErrValidation)
+}
+
+func TestUpdate_AssignAndFieldChanges(t *testing.T) {
+	// admin меняет title/description и назначает исполнителя-члена — три записи истории.
+	svc, taskRepo, historyRepo, teamRepo, txm, cacheRepo := newTestService(t)
+
+	cur := &model.Task{ID: 10, TeamID: 1, Title: "Old", Description: "old desc", Status: model.StatusTodo, CreatedBy: 1}
+	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).Return(cur, nil)
+	teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(99)).Return(model.RoleAdmin, nil)
+	teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(8)).Return(model.RoleMember, nil)
+
+	runTx(txm)
+	taskRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, tk *model.Task) error {
+			assert.Equal(t, "New", tk.Title)
+			assert.Equal(t, "new desc", tk.Description)
+			require.NotNil(t, tk.AssigneeID)
+			assert.Equal(t, int64(8), *tk.AssigneeID)
+			return nil
+		})
+	fields := map[string]string{}
+	historyRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Times(3).DoAndReturn(
+		func(_ context.Context, e *model.TaskHistoryEntry) (int64, error) {
+			if e.NewValue != nil {
+				fields[e.Field] = *e.NewValue
+			} else {
+				fields[e.Field] = ""
+			}
+			return int64(1), nil
+		})
+	cacheRepo.EXPECT().InvalidateTeam(gomock.Any(), int64(1)).Return(nil)
+	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).Return(cur, nil)
+
+	_, err := svc.Update(context.Background(), model.UpdateTaskInput{
+		ActorID: 99, TaskID: 10,
+		Title: strPtr("  New "), Description: strPtr(" new desc "), AssigneeID: ptrInt64(8),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "New", fields["title"])
+	assert.Equal(t, "new desc", fields["description"])
+	assert.Equal(t, "8", fields["assignee_id"])
+}
+
+func TestUpdate_CacheInvalidationFailureNonFatal(t *testing.T) {
+	// Сбой инвалидации кэша best-effort: обновление всё равно успешно.
+	svc, taskRepo, historyRepo, teamRepo, txm, cacheRepo := newTestService(t)
+
+	cur := &model.Task{ID: 10, TeamID: 1, Title: "T", Status: model.StatusTodo, CreatedBy: 42}
+	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).Return(cur, nil)
+	teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(42)).Return(model.RoleMember, nil)
+
+	runTx(txm)
+	taskRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
+	historyRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(int64(1), nil)
+	cacheRepo.EXPECT().InvalidateTeam(gomock.Any(), int64(1)).Return(stderrors.New("redis down"))
+	updated := &model.Task{ID: 10, TeamID: 1, Title: "T", Status: model.StatusInProgress, CreatedBy: 42}
+	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).Return(updated, nil)
+
+	task, err := svc.Update(context.Background(), model.UpdateTaskInput{
+		ActorID: 42, TaskID: 10, Status: ptrStatus(model.StatusInProgress),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, model.StatusInProgress, task.Status)
 }
