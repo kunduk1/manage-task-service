@@ -49,6 +49,36 @@ make run                         # go run ./cmd -config-path local.env
 Миграции базы данных применяются автоматически при старте приложения —
 вручную ничего накатывать не нужно.
 
+### Тестовые данные (seed)
+
+Чтобы наполнить локальную БД готовым набором данных (для ручного тестирования,
+Swagger, фронтенда или демо):
+
+```bash
+make compose-up   # поднять MySQL + Redis
+make seed         # наполнить БД фикстурами (флаг -reset стирает прежние данные)
+```
+
+`make seed` создаёт 5 пользователей, 2 команды (с ролями owner/admin/member),
+8 задач (все статусы, в т.ч. misassigned-задача и разброс дат для аналитики),
+историю изменений и комментарии. У всех аккаунтов общий пароль `password123`:
+
+| Email               | Имя          | Роль(и)                                  |
+| ------------------- | ------------ | ---------------------------------------- |
+| `alice@example.com` | Alice Owner  | owner команды Platform                   |
+| `bob@example.com`   | Bob Admin    | admin команды Platform                   |
+| `carol@example.com` | Carol Member | member команды Platform                  |
+| `dave@example.com`  | Dave Lead    | owner команды Mobile                     |
+| `erin@example.com`  | Erin Member  | member команды Mobile                    |
+
+```bash
+# залогиниться засеянным пользователем
+curl -s localhost:8080/api/v1/login \
+  -d '{"email":"alice@example.com","password":"password123"}'
+```
+
+Реализация — `cmd/seed` + пакет `internal/seed` (детерминированные фикстуры).
+
 ## Конфигурация
 
 Настройки читаются из env-файла (флаг `-config-path`, по умолчанию `local.env`).
@@ -115,6 +145,7 @@ docs/           сгенерированная OpenAPI-спецификация
 | Команда                 | Что делает                                              |
 | ----------------------- | ------------------------------------------------------ |
 | `make run`              | Запустить сервис локально                              |
+| `make seed`             | Наполнить dev-БД фикстурами (`cmd/seed`, с `-reset`)   |
 | `make build`            | Собрать бинарь в `bin/manage-task-service`             |
 | `make test`             | Юнит-тесты (`go test ./...`)                           |
 | `make test-integration` | Интеграционные тесты (testcontainers, нужен Docker)    |
