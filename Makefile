@@ -1,4 +1,4 @@
-.PHONY: run build tidy test cover vet lint lint-fix swagger mocks generate bin-deps compose-up compose-down migrate-up docker-build
+.PHONY: run build tidy test test-integration cover vet lint lint-fix swagger mocks generate bin-deps compose-up compose-down migrate-up docker-build
 
 APP_NAME                  := manage-task-service
 CONFIG                    := local.env
@@ -28,6 +28,12 @@ tidy:
 
 test:
 	go test ./...
+
+# Интеграционные тесты на testcontainers (нужен запущенный Docker). Поднимают
+# MySQL+Redis в контейнерах, гоняют реальный роутер end-to-end. Тег integration
+# исключает их из обычного `make test` и из покрытия (cover).
+test-integration:
+	go test -tags=integration -race -count=1 ./test/integration/...
 
 # Прогоняет тесты с профилем покрытия и проверяет порог 85% (go-test-coverage).
 cover: $(GO_TEST_COVERAGE)

@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 var errBoom = stderrors.New("boom")
@@ -27,12 +29,8 @@ func ok() error   { return nil }
 func TestClosed_AllowsSuccess(t *testing.T) {
 	b, _ := newTestBreaker(t, Settings{MaxFailures: 3})
 
-	if err := b.Execute(t.Context(), ok); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if b.State() != StateClosed {
-		t.Fatalf("expected closed, got %s", b.State())
-	}
+	require.NoError(t, b.Execute(t.Context(), ok))
+	require.Equal(t, StateClosed, b.State())
 }
 
 func TestClosed_ResetsOnSuccess(t *testing.T) {
@@ -46,52 +44,37 @@ func TestClosed_ResetsOnSuccess(t *testing.T) {
 	_ = b.Execute(t.Context(), fail)
 	_ = b.Execute(t.Context(), fail)
 
-	if b.State() != StateClosed {
-		t.Fatalf("expected closed, got %s", b.State())
-	}
+	require.Equal(t, StateClosed, b.State())
 }
 
 func TestTripsAfterNConsecutiveFailures(t *testing.T) {
 	b, _ := newTestBreaker(t, Settings{MaxFailures: 3})
 
 	for i := 0; i < 3; i++ {
-		if err := b.Execute(t.Context(), fail); !stderrors.Is(err, errBoom) {
-			t.Fatalf("call %d: expected errBoom, got %v", i, err)
-		}
+		err := b.Execute(t.Context(), fail)
+		require.ErrorIs(t, err, errBoom)
 	}
-	if b.State() != StateOpen {
-		t.Fatalf("expected open after 3 failures, got %s", b.State())
-	}
+	require.Equal(t, StateOpen, b.State())
 
 	// В open вызов короткозамкнут: fn не выполняется, возвращается ErrOpen.
 	called := false
 	err := b.Execute(t.Context(), func() error { called = true; return nil })
-	if !stderrors.Is(err, ErrOpen) {
-		t.Fatalf("expected ErrOpen, got %v", err)
-	}
-	if called {
-		t.Fatal("fn must not be called while breaker is open")
-	}
+	require.ErrorIs(t, err, ErrOpen)
+	require.False(t, called)
 }
 
 func TestOpen_FastFailsBeforeTimeout(t *testing.T) {
 	b, clock := newTestBreaker(t, Settings{MaxFailures: 1, OpenTimeout: 30 * time.Second})
 
 	_ = b.Execute(t.Context(), fail) // тут же размыкается (MaxFailures=1)
-	if b.State() != StateOpen {
-		t.Fatalf("expected open, got %s", b.State())
-	}
+	require.Equal(t, StateOpen, b.State())
 
 	*clock = clock.Add(30*time.Second - time.Nanosecond) // ещё не истёк таймаут
 
 	called := false
 	err := b.Execute(t.Context(), func() error { called = true; return nil })
-	if !stderrors.Is(err, ErrOpen) {
-		t.Fatalf("expected ErrOpen, got %v", err)
-	}
-	if called {
-		t.Fatal("fn must not be called before open timeout elapses")
-	}
+	require.ErrorIs(t, err, ErrOpen)
+	require.False(t, called)
 }
 
 func TestOpen_TransitionsToHalfOpenAfterTimeout(t *testing.T) {
@@ -106,12 +89,8 @@ func TestOpen_TransitionsToHalfOpenAfterTimeout(t *testing.T) {
 		observed = b.State()
 		return nil
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if observed != StateHalfOpen {
-		t.Fatalf("expected half-open during probe, got %s", observed)
-	}
+	require.NoError(t, err)
+	require.Equal(t, StateHalfOpen, observed)
 }
 
 func TestHalfOpen_SuccessCloses(t *testing.T) {
@@ -120,12 +99,8 @@ func TestHalfOpen_SuccessCloses(t *testing.T) {
 	_ = b.Execute(t.Context(), fail)
 	*clock = clock.Add(30 * time.Second)
 
-	if err := b.Execute(t.Context(), ok); err != nil { // успешная проба закрывает
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if b.State() != StateClosed {
-		t.Fatalf("expected closed after successful probe, got %s", b.State())
-	}
+	require.NoError(t, b.Execute(t.Context(), ok)) // успешная проба закрывает
+	require.Equal(t, StateClosed, b.State())
 }
 
 func TestHalfOpen_FailureReopens(t *testing.T) {
@@ -136,16 +111,13 @@ func TestHalfOpen_FailureReopens(t *testing.T) {
 
 	// Неудачная проба немедленно возвращает в open и перезапускает таймер.
 	_ = b.Execute(t.Context(), fail)
-	if b.State() != StateOpen {
-		t.Fatalf("expected open after failed probe, got %s", b.State())
-	}
+	require.Equal(t, StateOpen, b.State())
 
 	// Сразу после повторного размыкания таймаут ещё не истёк — fast-fail.
 	called := false
 	err := b.Execute(t.Context(), func() error { called = true; return nil })
-	if !stderrors.Is(err, ErrOpen) || called {
-		t.Fatalf("expected fast-fail after reopen, err=%v called=%v", err, called)
-	}
+	require.ErrorIs(t, err, ErrOpen)
+	require.False(t, called)
 }
 
 func TestHalfOpen_SecondProbeFastFails(t *testing.T) {
@@ -172,15 +144,12 @@ func TestHalfOpen_SecondProbeFastFails(t *testing.T) {
 	<-entered // дождались, что проба реально выполняется
 
 	// Пока проба в полёте, второй вызов должен быть короткозамкнут.
-	if err := b.Execute(t.Context(), ok); !stderrors.Is(err, ErrOpen) {
-		t.Fatalf("expected ErrOpen for concurrent second probe, got %v", err)
-	}
+	err := b.Execute(t.Context(), ok)
+	require.ErrorIs(t, err, ErrOpen)
 
 	close(release)
 	wg.Wait()
-	if probeErr != nil {
-		t.Fatalf("probe unexpectedly failed: %v", probeErr)
-	}
+	require.NoError(t, probeErr)
 }
 
 func TestOnStateChange_FiresFullCycle(t *testing.T) {
@@ -210,14 +179,7 @@ func TestOnStateChange_FiresFullCycle(t *testing.T) {
 		{StateOpen, StateHalfOpen},
 		{StateHalfOpen, StateClosed},
 	}
-	if len(transitions) != len(want) {
-		t.Fatalf("expected %d transitions, got %d: %+v", len(want), len(transitions), transitions)
-	}
-	for i := range want {
-		if transitions[i] != want[i] {
-			t.Fatalf("transition %d: want %+v, got %+v", i, want[i], transitions[i])
-		}
-	}
+	require.Equal(t, want, transitions)
 }
 
 func TestConcurrent_RaceSafe(t *testing.T) {
@@ -240,10 +202,6 @@ func TestConcurrent_RaceSafe(t *testing.T) {
 	wg.Wait()
 
 	// При сплошных ошибках брейкер обязан оказаться разомкнутым.
-	if b.State() != StateOpen {
-		t.Fatalf("expected open under sustained failures, got %s", b.State())
-	}
-	if atomic.LoadInt64(&executed) == 0 {
-		t.Fatal("fn was never executed")
-	}
+	require.Equal(t, StateOpen, b.State())
+	require.NotZero(t, atomic.LoadInt64(&executed))
 }

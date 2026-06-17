@@ -2,9 +2,10 @@ package task
 
 import (
 	"context"
-	stderrors "errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/kunduk1/manage-task-service/internal/model"
@@ -17,15 +18,9 @@ func TestCreate_Success(t *testing.T) {
 	teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(42)).Return(model.RoleMember, nil)
 	taskRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, tk *model.Task) (int64, error) {
-			if tk.Title != "Write docs" {
-				t.Errorf("expected trimmed title, got %q", tk.Title)
-			}
-			if tk.CreatedBy != 42 {
-				t.Errorf("expected created_by 42, got %d", tk.CreatedBy)
-			}
-			if tk.Status != model.StatusTodo {
-				t.Errorf("expected default status todo, got %q", tk.Status)
-			}
+			assert.Equal(t, "Write docs", tk.Title)
+			assert.Equal(t, int64(42), tk.CreatedBy)
+			assert.Equal(t, model.StatusTodo, tk.Status)
 			return int64(5), nil
 		})
 	// Создание задачи инвалидирует кэш списка команды.
@@ -36,12 +31,8 @@ func TestCreate_Success(t *testing.T) {
 	task, err := svc.Create(context.Background(), model.CreateTaskInput{
 		ActorID: 42, TeamID: 1, Title: "  Write docs ",
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if task.ID != 5 {
-		t.Errorf("expected id from repository, got %d", task.ID)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, int64(5), task.ID)
 }
 
 func TestCreate_AssigneeMustBeMember(t *testing.T) {
@@ -54,9 +45,7 @@ func TestCreate_AssigneeMustBeMember(t *testing.T) {
 	_, err := svc.Create(context.Background(), model.CreateTaskInput{
 		ActorID: 42, TeamID: 1, Title: "X", AssigneeID: ptrInt64(7),
 	})
-	if !stderrors.Is(err, errors.ErrValidation) {
-		t.Errorf("expected ErrValidation, got %v", err)
-	}
+	assert.ErrorIs(t, err, errors.ErrValidation)
 }
 
 func TestCreate_Validation(t *testing.T) {
@@ -68,10 +57,9 @@ func TestCreate_Validation(t *testing.T) {
 		{ActorID: 1, TeamID: 0, Title: "X"},                                    // нет team_id
 		{ActorID: 1, TeamID: 1, Title: "X", Status: model.TaskStatus("bogus")}, // неверный статус
 	}
-	for i, in := range cases {
-		if _, err := svc.Create(context.Background(), in); !stderrors.Is(err, errors.ErrValidation) {
-			t.Errorf("case %d: expected ErrValidation, got %v", i, err)
-		}
+	for _, in := range cases {
+		_, err := svc.Create(context.Background(), in)
+		assert.ErrorIs(t, err, errors.ErrValidation)
 	}
 }
 
@@ -82,7 +70,5 @@ func TestCreate_ForbiddenNotMember(t *testing.T) {
 		Return(model.TeamRole(""), errors.ErrNotTeamMember)
 
 	_, err := svc.Create(context.Background(), model.CreateTaskInput{ActorID: 99, TeamID: 1, Title: "X"})
-	if !stderrors.Is(err, errors.ErrForbidden) {
-		t.Errorf("expected ErrForbidden, got %v", err)
-	}
+	assert.ErrorIs(t, err, errors.ErrForbidden)
 }

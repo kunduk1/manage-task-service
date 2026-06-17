@@ -2,9 +2,10 @@ package task
 
 import (
 	"context"
-	stderrors "errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/kunduk1/manage-task-service/internal/model"
@@ -21,12 +22,8 @@ func TestHistory_Success(t *testing.T) {
 		Return([]model.TaskHistoryEntry{{ID: 1, Field: "status"}}, nil)
 
 	got, err := svc.History(context.Background(), model.TaskHistoryQuery{ActorID: 42, TaskID: 10})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(got) != 1 {
-		t.Errorf("expected 1 entry, got %d", len(got))
-	}
+	require.NoError(t, err)
+	assert.Len(t, got, 1)
 }
 
 func TestHistory_ForbiddenNotMember(t *testing.T) {
@@ -37,7 +34,5 @@ func TestHistory_ForbiddenNotMember(t *testing.T) {
 		Return(model.TeamRole(""), errors.ErrNotTeamMember)
 
 	_, err := svc.History(context.Background(), model.TaskHistoryQuery{ActorID: 99, TaskID: 10})
-	if !stderrors.Is(err, errors.ErrForbidden) {
-		t.Errorf("expected ErrForbidden, got %v", err)
-	}
+	assert.ErrorIs(t, err, errors.ErrForbidden)
 }

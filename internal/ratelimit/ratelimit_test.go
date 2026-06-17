@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	cachemocks "github.com/kunduk1/manage-task-service/internal/clients/cache/mocks"
@@ -26,15 +28,10 @@ func TestAllow_FirstRequestSetsTTL(t *testing.T) {
 	client.EXPECT().Expire(gomock.Any(), gomock.Any(), time.Minute).Return(nil)
 
 	res, err := l.Allow(context.Background(), "42")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !res.Allowed {
-		t.Error("first request must be allowed")
-	}
-	if res.RetryAfter <= 0 || res.RetryAfter > time.Minute {
-		t.Errorf("retry-after out of range: %v", res.RetryAfter)
-	}
+	require.NoError(t, err)
+	assert.True(t, res.Allowed)
+	assert.Positive(t, res.RetryAfter)
+	assert.LessOrEqual(t, res.RetryAfter, time.Minute)
 }
 
 func TestAllow_UnderLimitNoTTL(t *testing.T) {
@@ -44,12 +41,8 @@ func TestAllow_UnderLimitNoTTL(t *testing.T) {
 	client.EXPECT().Incr(gomock.Any(), gomock.Any()).Return(int64(50), nil)
 
 	res, err := l.Allow(context.Background(), "42")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !res.Allowed {
-		t.Error("request within limit must be allowed")
-	}
+	require.NoError(t, err)
+	assert.True(t, res.Allowed)
 }
 
 func TestAllow_AtLimitBoundary(t *testing.T) {
@@ -59,12 +52,8 @@ func TestAllow_AtLimitBoundary(t *testing.T) {
 	client.EXPECT().Incr(gomock.Any(), gomock.Any()).Return(int64(100), nil)
 
 	res, err := l.Allow(context.Background(), "42")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !res.Allowed {
-		t.Error("request at exact limit must be allowed")
-	}
+	require.NoError(t, err)
+	assert.True(t, res.Allowed)
 }
 
 func TestAllow_OverLimitBlocked(t *testing.T) {
@@ -74,15 +63,9 @@ func TestAllow_OverLimitBlocked(t *testing.T) {
 	client.EXPECT().Incr(gomock.Any(), gomock.Any()).Return(int64(101), nil)
 
 	res, err := l.Allow(context.Background(), "42")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if res.Allowed {
-		t.Error("request over limit must be blocked")
-	}
-	if res.RetryAfter <= 0 {
-		t.Errorf("blocked request must report positive retry-after, got %v", res.RetryAfter)
-	}
+	require.NoError(t, err)
+	assert.False(t, res.Allowed)
+	assert.Positive(t, res.RetryAfter)
 }
 
 func TestAllow_IncrError(t *testing.T) {
@@ -92,7 +75,5 @@ func TestAllow_IncrError(t *testing.T) {
 	client.EXPECT().Incr(gomock.Any(), gomock.Any()).Return(int64(0), boom)
 
 	_, err := l.Allow(context.Background(), "42")
-	if !stderrors.Is(err, boom) {
-		t.Errorf("expected boom error, got %v", err)
-	}
+	assert.ErrorIs(t, err, boom)
 }

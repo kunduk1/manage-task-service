@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/kunduk1/manage-task-service/internal/model"
@@ -23,16 +25,11 @@ func TestHistoryHandler_Success(t *testing.T) {
 	req := withURLParam(authedRequest(t, http.MethodGet, "/", "", 42, mgr), "id", "10")
 	rec := serveAuthed(h.History, req, mgr)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d (body=%q)", rec.Code, rec.Body.String())
-	}
+	require.Equal(t, http.StatusOK, rec.Code)
 	var resp taskv1.TaskHistoryResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid response body: %v", err)
-	}
-	if len(resp.Entries) != 1 || resp.Entries[0].Field != "status" {
-		t.Errorf("unexpected history: %+v", resp.Entries)
-	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Entries, 1)
+	assert.Equal(t, "status", resp.Entries[0].Field)
 }
 
 func TestHistoryHandler_BadID(t *testing.T) {
@@ -42,7 +39,5 @@ func TestHistoryHandler_BadID(t *testing.T) {
 	req := withURLParam(authedRequest(t, http.MethodGet, "/", "", 42, mgr), "id", "abc")
 	rec := serveAuthed(h.History, req, mgr)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for invalid task id, got %d", rec.Code)
-	}
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }

@@ -3,25 +3,26 @@ package taskhistory
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	repomodel "github.com/kunduk1/manage-task-service/internal/repository/taskhistory/model"
 )
 
 func TestToServiceEntry(t *testing.T) {
-	if toServiceEntry(nil) != nil {
-		t.Fatal("expected nil for nil input")
-	}
+	require.Nil(t, toServiceEntry(nil))
 
 	oldV, newV := "todo", "done"
 	got := toServiceEntry(&repomodel.Entry{
 		ID: 1, TaskID: 2, ChangedBy: 3, Field: "status", OldValue: &oldV, NewValue: &newV,
 	})
-	if got.OldValue == nil || *got.OldValue != oldV || got.NewValue == nil || *got.NewValue != newV {
-		t.Errorf("nullable values not preserved: %+v", got)
-	}
+	require.NotNil(t, got.OldValue)
+	assert.Equal(t, oldV, *got.OldValue)
+	require.NotNil(t, got.NewValue)
+	assert.Equal(t, newV, *got.NewValue)
 
 	// NULL значения остаются nil-указателями.
 	gotNil := toServiceEntry(&repomodel.Entry{ID: 2, Field: "assignee_id"})
-	if gotNil.OldValue != nil || gotNil.NewValue != nil {
-		t.Errorf("nil values should stay nil: old=%v new=%v", gotNil.OldValue, gotNil.NewValue)
-	}
+	assert.Nil(t, gotNil.OldValue)
+	assert.Nil(t, gotNil.NewValue)
 }

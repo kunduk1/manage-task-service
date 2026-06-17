@@ -2,9 +2,10 @@ package team
 
 import (
 	"context"
-	stderrors "errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/kunduk1/manage-task-service/internal/circuitbreaker"
@@ -20,9 +21,9 @@ func TestInvite_SuccessOwner(t *testing.T) {
 	userRepo.EXPECT().GetByID(gomock.Any(), int64(7)).Return(&model.User{ID: 7}, nil)
 	teamRepo.EXPECT().AddMember(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, m *model.TeamMember) error {
-			if m.TeamID != 1 || m.UserID != 7 || m.Role != model.RoleMember {
-				t.Errorf("unexpected member: %+v", m)
-			}
+			assert.Equal(t, int64(1), m.TeamID)
+			assert.Equal(t, int64(7), m.UserID)
+			assert.Equal(t, model.RoleMember, m.Role)
 			return nil
 		})
 	emailMock.EXPECT().SendInvite(gomock.Any(), gomock.Any()).Return(nil)
@@ -30,9 +31,7 @@ func TestInvite_SuccessOwner(t *testing.T) {
 	err := svc.Invite(context.Background(), model.InviteInput{
 		TeamID: 1, ActorID: 42, InviteeID: 7, Role: model.RoleMember,
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestInvite_SuccessAdminGrantsAdmin(t *testing.T) {
@@ -46,9 +45,7 @@ func TestInvite_SuccessAdminGrantsAdmin(t *testing.T) {
 	err := svc.Invite(context.Background(), model.InviteInput{
 		TeamID: 1, ActorID: 50, InviteeID: 7, Role: model.RoleAdmin,
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 // TestInvite_SendsInviteEmail проверяет, что письмо отправляется с корректным payload.
@@ -61,21 +58,18 @@ func TestInvite_SendsInviteEmail(t *testing.T) {
 	teamRepo.EXPECT().AddMember(gomock.Any(), gomock.Any()).Return(nil)
 	emailMock.EXPECT().SendInvite(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, in email.Invite) error {
-			if in.ToEmail != "ann@example.com" || in.ToName != "Ann" {
-				t.Errorf("unexpected recipient: %+v", in)
-			}
-			if in.TeamID != 1 || in.InviterID != 42 || in.Role != string(model.RoleMember) {
-				t.Errorf("unexpected invite payload: %+v", in)
-			}
+			assert.Equal(t, "ann@example.com", in.ToEmail)
+			assert.Equal(t, "Ann", in.ToName)
+			assert.Equal(t, int64(1), in.TeamID)
+			assert.Equal(t, int64(42), in.InviterID)
+			assert.Equal(t, string(model.RoleMember), in.Role)
 			return nil
 		})
 
 	err := svc.Invite(context.Background(), model.InviteInput{
 		TeamID: 1, ActorID: 42, InviteeID: 7, Role: model.RoleMember,
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 // TestInvite_SucceedsWhenEmailFails: сбой отправки письма (в т.ч. разомкнутый
@@ -91,9 +85,7 @@ func TestInvite_SucceedsWhenEmailFails(t *testing.T) {
 	err := svc.Invite(context.Background(), model.InviteInput{
 		TeamID: 1, ActorID: 42, InviteeID: 7, Role: model.RoleMember,
 	})
-	if err != nil {
-		t.Fatalf("invite must succeed despite email failure, got: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestInvite_ForbiddenNotMember(t *testing.T) {
@@ -105,9 +97,7 @@ func TestInvite_ForbiddenNotMember(t *testing.T) {
 	err := svc.Invite(context.Background(), model.InviteInput{
 		TeamID: 1, ActorID: 99, InviteeID: 7, Role: model.RoleMember,
 	})
-	if !stderrors.Is(err, errors.ErrForbidden) {
-		t.Errorf("expected ErrForbidden, got %v", err)
-	}
+	assert.ErrorIs(t, err, errors.ErrForbidden)
 }
 
 func TestInvite_ForbiddenPlainMember(t *testing.T) {
@@ -118,9 +108,7 @@ func TestInvite_ForbiddenPlainMember(t *testing.T) {
 	err := svc.Invite(context.Background(), model.InviteInput{
 		TeamID: 1, ActorID: 8, InviteeID: 7, Role: model.RoleMember,
 	})
-	if !stderrors.Is(err, errors.ErrForbidden) {
-		t.Errorf("expected ErrForbidden, got %v", err)
-	}
+	assert.ErrorIs(t, err, errors.ErrForbidden)
 }
 
 func TestInvite_InvalidRole(t *testing.T) {
@@ -131,9 +119,7 @@ func TestInvite_InvalidRole(t *testing.T) {
 	err := svc.Invite(context.Background(), model.InviteInput{
 		TeamID: 1, ActorID: 42, InviteeID: 7, Role: model.TeamRole("boss"),
 	})
-	if !stderrors.Is(err, errors.ErrValidation) {
-		t.Errorf("expected ErrValidation, got %v", err)
-	}
+	assert.ErrorIs(t, err, errors.ErrValidation)
 }
 
 func TestInvite_MissingUserID(t *testing.T) {
@@ -144,9 +130,7 @@ func TestInvite_MissingUserID(t *testing.T) {
 	err := svc.Invite(context.Background(), model.InviteInput{
 		TeamID: 1, ActorID: 42, InviteeID: 0, Role: model.RoleMember,
 	})
-	if !stderrors.Is(err, errors.ErrValidation) {
-		t.Errorf("expected ErrValidation, got %v", err)
-	}
+	assert.ErrorIs(t, err, errors.ErrValidation)
 }
 
 func TestInvite_InviteeNotFound(t *testing.T) {
@@ -158,9 +142,7 @@ func TestInvite_InviteeNotFound(t *testing.T) {
 	err := svc.Invite(context.Background(), model.InviteInput{
 		TeamID: 1, ActorID: 42, InviteeID: 7, Role: model.RoleMember,
 	})
-	if !stderrors.Is(err, errors.ErrUserNotFound) {
-		t.Errorf("expected ErrUserNotFound, got %v", err)
-	}
+	assert.ErrorIs(t, err, errors.ErrUserNotFound)
 }
 
 func TestInvite_DuplicateMember(t *testing.T) {
@@ -173,7 +155,5 @@ func TestInvite_DuplicateMember(t *testing.T) {
 	err := svc.Invite(context.Background(), model.InviteInput{
 		TeamID: 1, ActorID: 42, InviteeID: 7, Role: model.RoleMember,
 	})
-	if !stderrors.Is(err, errors.ErrMemberExists) {
-		t.Errorf("expected ErrMemberExists, got %v", err)
-	}
+	assert.ErrorIs(t, err, errors.ErrMemberExists)
 }

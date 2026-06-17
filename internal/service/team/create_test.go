@@ -5,6 +5,8 @@ import (
 	stderrors "errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/kunduk1/manage-task-service/internal/model"
@@ -18,19 +20,15 @@ func TestCreate_Success(t *testing.T) {
 	gomock.InOrder(
 		teamRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, tm *model.Team) (int64, error) {
-				if tm.Name != "Platform" {
-					t.Errorf("expected trimmed name Platform, got %q", tm.Name)
-				}
-				if tm.CreatedBy != 42 {
-					t.Errorf("expected created_by 42, got %d", tm.CreatedBy)
-				}
+				assert.Equal(t, "Platform", tm.Name)
+				assert.Equal(t, int64(42), tm.CreatedBy)
 				return int64(7), nil
 			}),
 		teamRepo.EXPECT().AddMember(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, m *model.TeamMember) error {
-				if m.TeamID != 7 || m.UserID != 42 || m.Role != model.RoleOwner {
-					t.Errorf("owner must be added to team: %+v", m)
-				}
+				assert.Equal(t, int64(7), m.TeamID)
+				assert.Equal(t, int64(42), m.UserID)
+				assert.Equal(t, model.RoleOwner, m.Role)
 				return nil
 			}),
 	)
@@ -38,12 +36,8 @@ func TestCreate_Success(t *testing.T) {
 		Return(&model.Team{ID: 7, Name: "Platform", CreatedBy: 42}, nil)
 
 	team, err := svc.Create(context.Background(), model.CreateTeamInput{Name: "  Platform ", OwnerID: 42})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if team.ID != 7 {
-		t.Errorf("expected id from repository, got %d", team.ID)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, int64(7), team.ID)
 }
 
 func TestCreate_Validation(t *testing.T) {
@@ -51,9 +45,7 @@ func TestCreate_Validation(t *testing.T) {
 	svc, _, _, _, _ := newTestService(t)
 
 	_, err := svc.Create(context.Background(), model.CreateTeamInput{Name: "   ", OwnerID: 1})
-	if !stderrors.Is(err, errors.ErrValidation) {
-		t.Errorf("expected ErrValidation, got %v", err)
-	}
+	assert.ErrorIs(t, err, errors.ErrValidation)
 }
 
 func TestCreate_AddMemberError(t *testing.T) {
@@ -68,7 +60,5 @@ func TestCreate_AddMemberError(t *testing.T) {
 	)
 
 	_, err := svc.Create(context.Background(), model.CreateTeamInput{Name: "Platform", OwnerID: 42})
-	if !stderrors.Is(err, errDB) {
-		t.Errorf("expected propagated error, got %v", err)
-	}
+	assert.ErrorIs(t, err, errDB)
 }

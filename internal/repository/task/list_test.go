@@ -3,6 +3,9 @@ package task
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/kunduk1/manage-task-service/internal/model"
 )
 
@@ -53,16 +56,10 @@ func TestBuildListQuery(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotQuery, gotArgs := buildListQuery(tt.filter)
 
-			if gotQuery != tt.wantQuery {
-				t.Errorf("query mismatch:\n got: %q\nwant: %q", gotQuery, tt.wantQuery)
-			}
-			if len(gotArgs) != len(tt.wantArgs) {
-				t.Fatalf("args length: got %d, want %d (%v)", len(gotArgs), len(tt.wantArgs), gotArgs)
-			}
+			assert.Equal(t, tt.wantQuery, gotQuery)
+			require.Len(t, gotArgs, len(tt.wantArgs))
 			for i := range tt.wantArgs {
-				if gotArgs[i] != tt.wantArgs[i] {
-					t.Errorf("arg[%d]: got %v (%T), want %v (%T)", i, gotArgs[i], gotArgs[i], tt.wantArgs[i], tt.wantArgs[i])
-				}
+				assert.Equal(t, tt.wantArgs[i], gotArgs[i])
 			}
 		})
 	}

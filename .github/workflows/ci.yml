@@ -42,6 +42,17 @@ jobs:
       - name: Test (race)
         run: go test -race ./...
 
+  integration:
+    name: Integration
+    runs-on: ubuntu-latest   # GitHub-hosted раннер уже с запущенным Docker — testcontainers поднимет MySQL/Redis сам
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Integration tests (testcontainers)
+        run: make test-integration
+
   coverage:
     name: Coverage
     runs-on: ubuntu-latest

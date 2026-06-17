@@ -2,9 +2,10 @@ package task
 
 import (
 	"context"
-	stderrors "errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/kunduk1/manage-task-service/internal/model"
@@ -22,19 +23,17 @@ func TestUpdate_StatusChangeRecordsHistory(t *testing.T) {
 	runTx(txm)
 	taskRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, tk *model.Task) error {
-			if tk.Status != model.StatusInProgress {
-				t.Errorf("expected status in_progress, got %q", tk.Status)
-			}
+			assert.Equal(t, model.StatusInProgress, tk.Status)
 			return nil
 		})
 	historyRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, e *model.TaskHistoryEntry) (int64, error) {
-			if e.Field != "status" || e.ChangedBy != 42 {
-				t.Errorf("unexpected history entry: %+v", e)
-			}
-			if e.OldValue == nil || *e.OldValue != "todo" || e.NewValue == nil || *e.NewValue != "in_progress" {
-				t.Errorf("expected todo->in_progress, got old=%v new=%v", e.OldValue, e.NewValue)
-			}
+			assert.Equal(t, "status", e.Field)
+			assert.Equal(t, int64(42), e.ChangedBy)
+			require.NotNil(t, e.OldValue)
+			assert.Equal(t, "todo", *e.OldValue)
+			require.NotNil(t, e.NewValue)
+			assert.Equal(t, "in_progress", *e.NewValue)
 			return int64(1), nil
 		})
 	// Обновление задачи инвалидирует кэш списка команды.
@@ -45,12 +44,8 @@ func TestUpdate_StatusChangeRecordsHistory(t *testing.T) {
 	task, err := svc.Update(context.Background(), model.UpdateTaskInput{
 		ActorID: 42, TaskID: 10, Status: ptrStatus(model.StatusInProgress),
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if task.Status != model.StatusInProgress {
-		t.Errorf("expected updated status, got %q", task.Status)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, model.StatusInProgress, task.Status)
 }
 
 func TestUpdate_NotFound(t *testing.T) {
@@ -59,9 +54,7 @@ func TestUpdate_NotFound(t *testing.T) {
 	taskRepo.EXPECT().GetByID(gomock.Any(), int64(10)).Return(nil, errors.ErrTaskNotFound)
 
 	_, err := svc.Update(context.Background(), model.UpdateTaskInput{ActorID: 42, TaskID: 10})
-	if !stderrors.Is(err, errors.ErrTaskNotFound) {
-		t.Errorf("expected ErrTaskNotFound, got %v", err)
-	}
+	assert.ErrorIs(t, err, errors.ErrTaskNotFound)
 }
 
 func TestUpdate_ForbiddenPlainMember(t *testing.T) {
@@ -75,9 +68,7 @@ func TestUpdate_ForbiddenPlainMember(t *testing.T) {
 	_, err := svc.Update(context.Background(), model.UpdateTaskInput{
 		ActorID: 99, TaskID: 10, Status: ptrStatus(model.StatusDone),
 	})
-	if !stderrors.Is(err, errors.ErrForbidden) {
-		t.Errorf("expected ErrForbidden, got %v", err)
-	}
+	assert.ErrorIs(t, err, errors.ErrForbidden)
 }
 
 func TestUpdate_AssigneeCanUpdate(t *testing.T) {
@@ -97,9 +88,7 @@ func TestUpdate_AssigneeCanUpdate(t *testing.T) {
 	_, err := svc.Update(context.Background(), model.UpdateTaskInput{
 		ActorID: 7, TaskID: 10, Status: ptrStatus(model.StatusTodo),
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestUpdate_InvalidStatus(t *testing.T) {
@@ -112,7 +101,5 @@ func TestUpdate_InvalidStatus(t *testing.T) {
 	_, err := svc.Update(context.Background(), model.UpdateTaskInput{
 		ActorID: 42, TaskID: 10, Status: ptrStatus(model.TaskStatus("bogus")),
 	})
-	if !stderrors.Is(err, errors.ErrValidation) {
-		t.Errorf("expected ErrValidation, got %v", err)
-	}
+	assert.ErrorIs(t, err, errors.ErrValidation)
 }

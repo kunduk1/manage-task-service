@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/bcrypt"
 
@@ -17,9 +19,7 @@ func TestLogin_Success(t *testing.T) {
 	svc, userRepo, tokenRepo := newTestService(t)
 
 	hash, err := bcrypt.GenerateFromPassword([]byte("secret123"), bcrypt.DefaultCost)
-	if err != nil {
-		t.Fatalf("failed to hash password: %v", err)
-	}
+	require.NoError(t, err)
 	userRepo.EXPECT().GetByEmail(gomock.Any(), "login@example.com").
 		Return(&model.User{ID: 1, Email: "login@example.com", PasswordHash: string(hash)}, nil)
 
@@ -34,36 +34,25 @@ func TestLogin_Success(t *testing.T) {
 	tokens, err := svc.Login(context.Background(), model.LoginInput{
 		Email: "login@example.com", Password: "secret123",
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if tokens.AccessToken == "" || tokens.RefreshToken == "" {
-		t.Errorf("expected non-empty tokens, got %+v", tokens)
-	}
-	if tokens.ExpiresIn <= 0 {
-		t.Errorf("expected positive expires_in, got %d", tokens.ExpiresIn)
-	}
-	if savedToken != tokens.RefreshToken {
-		t.Errorf("refresh token saved (%q) does not match returned token (%q)", savedToken, tokens.RefreshToken)
-	}
+	require.NoError(t, err)
+	assert.NotEmpty(t, tokens.AccessToken)
+	assert.NotEmpty(t, tokens.RefreshToken)
+	assert.Positive(t, tokens.ExpiresIn)
+	assert.Equal(t, tokens.RefreshToken, savedToken)
 }
 
 func TestLogin_WrongPassword(t *testing.T) {
 	svc, userRepo, _ := newTestService(t)
 
 	hash, err := bcrypt.GenerateFromPassword([]byte("secret123"), bcrypt.DefaultCost)
-	if err != nil {
-		t.Fatalf("failed to hash password: %v", err)
-	}
+	require.NoError(t, err)
 	userRepo.EXPECT().GetByEmail(gomock.Any(), "wp@example.com").
 		Return(&model.User{ID: 1, Email: "wp@example.com", PasswordHash: string(hash)}, nil)
 
 	_, err = svc.Login(context.Background(), model.LoginInput{
 		Email: "wp@example.com", Password: "wrong-password",
 	})
-	if !stderrors.Is(err, errors.ErrInvalidCredentials) {
-		t.Errorf("expected ErrInvalidCredentials, got %v", err)
-	}
+	assert.ErrorIs(t, err, errors.ErrInvalidCredentials)
 }
 
 func TestLogin_UnknownUser(t *testing.T) {
@@ -74,9 +63,7 @@ func TestLogin_UnknownUser(t *testing.T) {
 	_, err := svc.Login(context.Background(), model.LoginInput{
 		Email: "ghost@example.com", Password: "secret123",
 	})
-	if !stderrors.Is(err, errors.ErrInvalidCredentials) {
-		t.Errorf("expected ErrInvalidCredentials, got %v", err)
-	}
+	assert.ErrorIs(t, err, errors.ErrInvalidCredentials)
 }
 
 func TestLogin_Validation(t *testing.T) {
@@ -87,10 +74,9 @@ func TestLogin_Validation(t *testing.T) {
 		{Email: "", Password: "secret123"},
 		{Email: "a@b.c", Password: ""},
 	}
-	for i, in := range cases {
-		if _, err := svc.Login(context.Background(), in); !stderrors.Is(err, errors.ErrValidation) {
-			t.Errorf("case %d: expected ErrValidation, got %v", i, err)
-		}
+	for _, in := range cases {
+		_, err := svc.Login(context.Background(), in)
+		assert.ErrorIs(t, err, errors.ErrValidation)
 	}
 }
 
@@ -104,9 +90,7 @@ func TestLogin_RepoError(t *testing.T) {
 	_, err := svc.Login(context.Background(), model.LoginInput{
 		Email: "err@example.com", Password: "secret123",
 	})
-	if !stderrors.Is(err, errDB) {
-		t.Errorf("expected propagated repo error, got %v", err)
-	}
+	assert.ErrorIs(t, err, errDB)
 }
 
 func TestLogin_SaveRefreshError(t *testing.T) {
@@ -115,9 +99,7 @@ func TestLogin_SaveRefreshError(t *testing.T) {
 	errDB := stderrors.New("redis down")
 
 	hash, err := bcrypt.GenerateFromPassword([]byte("secret123"), bcrypt.DefaultCost)
-	if err != nil {
-		t.Fatalf("failed to hash password: %v", err)
-	}
+	require.NoError(t, err)
 	userRepo.EXPECT().GetByEmail(gomock.Any(), "save@example.com").
 		Return(&model.User{ID: 7, Email: "save@example.com", PasswordHash: string(hash)}, nil)
 	tokenRepo.EXPECT().SaveRefresh(gomock.Any(), gomock.Any(), int64(7), gomock.Any()).Return(errDB)
@@ -125,7 +107,5 @@ func TestLogin_SaveRefreshError(t *testing.T) {
 	_, err = svc.Login(context.Background(), model.LoginInput{
 		Email: "save@example.com", Password: "secret123",
 	})
-	if !stderrors.Is(err, errDB) {
-		t.Errorf("expected propagated save-refresh error, got %v", err)
-	}
+	assert.ErrorIs(t, err, errDB)
 }

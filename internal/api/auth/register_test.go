@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/kunduk1/manage-task-service/internal/model"
@@ -41,16 +43,12 @@ func TestRegister_Success(t *testing.T) {
 
 	rec := doPost(h.Register, `{"email":"user@example.com","name":"Alice","password":"secret123"}`)
 
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d (body=%q)", rec.Code, rec.Body.String())
-	}
+	require.Equal(t, http.StatusCreated, rec.Code)
 	var resp authv1.RegisterResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid response body: %v", err)
-	}
-	if resp.ID != 42 || resp.Email != "user@example.com" || resp.Name != "Alice" {
-		t.Errorf("unexpected response: %+v", resp)
-	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, int64(42), resp.ID)
+	assert.Equal(t, "user@example.com", resp.Email)
+	assert.Equal(t, "Alice", resp.Name)
 }
 
 func TestRegister_Conflict(t *testing.T) {
@@ -59,9 +57,7 @@ func TestRegister_Conflict(t *testing.T) {
 
 	rec := doPost(h.Register, `{"email":"dup@example.com","password":"secret123"}`)
 
-	if rec.Code != http.StatusConflict {
-		t.Errorf("expected 409, got %d", rec.Code)
-	}
+	assert.Equal(t, http.StatusConflict, rec.Code)
 }
 
 func TestRegister_MalformedJSON(t *testing.T) {
@@ -70,7 +66,5 @@ func TestRegister_MalformedJSON(t *testing.T) {
 
 	rec := doPost(h.Register, `{`)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for malformed JSON, got %d", rec.Code)
-	}
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }

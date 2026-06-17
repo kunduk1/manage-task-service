@@ -6,15 +6,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/kunduk1/manage-task-service/internal/token"
 )
 
 func newToken(t *testing.T, mgr *token.Manager, userID int64) string {
 	t.Helper()
 	signed, _, err := mgr.GenerateAccess(userID, "u@e.com")
-	if err != nil {
-		t.Fatalf("failed to generate token: %v", err)
-	}
+	require.NoError(t, err)
 	return signed
 }
 
@@ -39,27 +40,18 @@ func TestAuth_ValidToken(t *testing.T) {
 	mgr := token.NewManager("test-secret", time.Minute)
 	rec, nextCalled, gotUserID, gotOK := serve(mgr, "Bearer "+newToken(t, mgr, 42))
 
-	if !nextCalled {
-		t.Fatal("expected next handler to be called for a valid token")
-	}
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", rec.Code)
-	}
-	if !gotOK || gotUserID != "42" {
-		t.Errorf("expected userID %q in context, got %q (ok=%v)", "42", gotUserID, gotOK)
-	}
+	require.True(t, nextCalled, "expected next handler to be called for a valid token")
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.True(t, gotOK)
+	assert.Equal(t, "42", gotUserID)
 }
 
 func TestAuth_MissingHeader(t *testing.T) {
 	mgr := token.NewManager("test-secret", time.Minute)
 	rec, nextCalled, _, _ := serve(mgr, "")
 
-	if nextCalled {
-		t.Error("next handler must not be called without an Authorization header")
-	}
-	if rec.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401, got %d", rec.Code)
-	}
+	assert.False(t, nextCalled, "next handler must not be called without an Authorization header")
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
 func TestAuth_MalformedHeader(t *testing.T) {
@@ -67,12 +59,8 @@ func TestAuth_MalformedHeader(t *testing.T) {
 	// Корректный токен, но без префикса "Bearer ".
 	rec, nextCalled, _, _ := serve(mgr, "Token "+newToken(t, mgr, 1))
 
-	if nextCalled {
-		t.Error("next handler must not be called for a header without the Bearer prefix")
-	}
-	if rec.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401, got %d", rec.Code)
-	}
+	assert.False(t, nextCalled, "next handler must not be called for a header without the Bearer prefix")
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
 func TestAuth_InvalidToken(t *testing.T) {
@@ -80,28 +68,20 @@ func TestAuth_InvalidToken(t *testing.T) {
 	verifier := token.NewManager("secret-b", time.Minute) // другой секрет → подпись не сойдётся
 	rec, nextCalled, _, _ := serve(verifier, "Bearer "+newToken(t, issuer, 1))
 
-	if nextCalled {
-		t.Error("next handler must not be called for an invalid token")
-	}
-	if rec.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401, got %d", rec.Code)
-	}
+	assert.False(t, nextCalled, "next handler must not be called for an invalid token")
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
 func TestAuth_ExpiredToken(t *testing.T) {
 	mgr := token.NewManager("test-secret", -time.Minute) // exp в прошлом
 	rec, nextCalled, _, _ := serve(mgr, "Bearer "+newToken(t, mgr, 1))
 
-	if nextCalled {
-		t.Error("next handler must not be called for an expired token")
-	}
-	if rec.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401, got %d", rec.Code)
-	}
+	assert.False(t, nextCalled, "next handler must not be called for an expired token")
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
 func TestUserIDFromContext_Absent(t *testing.T) {
-	if v, ok := UserIDFromContext(t.Context()); ok || v != "" {
-		t.Errorf("expected (\"\", false) for a context without userID, got (%q, %v)", v, ok)
-	}
+	v, ok := UserIDFromContext(t.Context())
+	assert.False(t, ok)
+	assert.Empty(t, v)
 }

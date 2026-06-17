@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/kunduk1/manage-task-service/internal/model"
@@ -16,10 +18,6 @@ func TestList_PassThrough(t *testing.T) {
 	teamRepo.EXPECT().ListByUser(gomock.Any(), int64(5)).Return(want, nil)
 
 	got, err := svc.List(context.Background(), 5)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(got) != 2 {
-		t.Errorf("expected 2 teams, got %d", len(got))
-	}
+	require.NoError(t, err)
+	assert.Len(t, got, 2)
 }

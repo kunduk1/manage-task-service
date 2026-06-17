@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/kunduk1/manage-task-service/internal/model"
@@ -23,19 +25,12 @@ func TestListHandler_Success(t *testing.T) {
 	req := authedRequest(t, http.MethodGet, "/?team_id=1&status=todo&limit=5", "", 42, mgr)
 	rec := serveAuthed(h.List, req, mgr)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d (body=%q)", rec.Code, rec.Body.String())
-	}
+	require.Equal(t, http.StatusOK, rec.Code)
 	var resp taskv1.ListTasksResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid response body: %v", err)
-	}
-	if len(resp.Tasks) != 2 {
-		t.Errorf("expected 2 tasks, got %d", len(resp.Tasks))
-	}
-	if resp.Limit != 5 || resp.Offset != 0 {
-		t.Errorf("expected echoed limit=5 offset=0, got limit=%d offset=%d", resp.Limit, resp.Offset)
-	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Len(t, resp.Tasks, 2)
+	assert.Equal(t, 5, resp.Limit)
+	assert.Equal(t, 0, resp.Offset)
 }
 
 func TestListHandler_MissingTeamID(t *testing.T) {
@@ -45,9 +40,7 @@ func TestListHandler_MissingTeamID(t *testing.T) {
 	req := authedRequest(t, http.MethodGet, "/", "", 42, mgr)
 	rec := serveAuthed(h.List, req, mgr)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for missing team_id, got %d", rec.Code)
-	}
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestListHandler_InvalidAssignee(t *testing.T) {
@@ -57,7 +50,5 @@ func TestListHandler_InvalidAssignee(t *testing.T) {
 	req := authedRequest(t, http.MethodGet, "/?team_id=1&assignee_id=abc", "", 42, mgr)
 	rec := serveAuthed(h.List, req, mgr)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for invalid assignee_id, got %d", rec.Code)
-	}
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }

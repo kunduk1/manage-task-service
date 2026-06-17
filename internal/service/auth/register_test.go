@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/bcrypt"
 
@@ -25,18 +27,11 @@ func TestRegister_Success(t *testing.T) {
 		Name:     "Alice",
 		Password: "secret123",
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if user.ID != 1 {
-		t.Errorf("expected id from repository, got %d", user.ID)
-	}
-	if user.Email != "user@example.com" {
-		t.Errorf("expected normalized email, got %q", user.Email)
-	}
-	if user.PasswordHash == "secret123" || user.PasswordHash == "" {
-		t.Errorf("password must be hashed, got %q", user.PasswordHash)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), user.ID)
+	assert.Equal(t, "user@example.com", user.Email)
+	assert.NotEqual(t, "secret123", user.PasswordHash)
+	assert.NotEmpty(t, user.PasswordHash)
 }
 
 func TestRegister_Duplicate(t *testing.T) {
@@ -50,13 +45,10 @@ func TestRegister_Duplicate(t *testing.T) {
 		userRepo.EXPECT().GetByEmail(gomock.Any(), "dup@example.com").Return(&model.User{ID: 1, Email: "dup@example.com"}, nil),
 	)
 
-	if _, err := svc.Register(context.Background(), in); err != nil {
-		t.Fatalf("unexpected error on first register: %v", err)
-	}
 	_, err := svc.Register(context.Background(), in)
-	if !stderrors.Is(err, errors.ErrUserExists) {
-		t.Errorf("expected ErrUserExists, got %v", err)
-	}
+	require.NoError(t, err)
+	_, err = svc.Register(context.Background(), in)
+	assert.ErrorIs(t, err, errors.ErrUserExists)
 }
 
 func TestRegister_Validation(t *testing.T) {
@@ -69,10 +61,9 @@ func TestRegister_Validation(t *testing.T) {
 		{Email: "a@b.c", Password: ""},
 		{Email: "a@b.c", Password: "123"}, // слишком короткий
 	}
-	for i, in := range cases {
-		if _, err := svc.Register(context.Background(), in); !stderrors.Is(err, errors.ErrValidation) {
-			t.Errorf("case %d: expected ErrValidation, got %v", i, err)
-		}
+	for _, in := range cases {
+		_, err := svc.Register(context.Background(), in)
+		assert.ErrorIs(t, err, errors.ErrValidation)
 	}
 }
 
@@ -86,9 +77,7 @@ func TestRegister_LookupError(t *testing.T) {
 	_, err := svc.Register(context.Background(), model.RegisterInput{
 		Email: "look@example.com", Password: "secret123",
 	})
-	if !stderrors.Is(err, errDB) {
-		t.Errorf("expected propagated lookup error, got %v", err)
-	}
+	assert.ErrorIs(t, err, errDB)
 }
 
 func TestRegister_CreateError(t *testing.T) {
@@ -104,9 +93,7 @@ func TestRegister_CreateError(t *testing.T) {
 	_, err := svc.Register(context.Background(), model.RegisterInput{
 		Email: "create@example.com", Password: "secret123",
 	})
-	if !stderrors.Is(err, errDB) {
-		t.Errorf("expected propagated create error, got %v", err)
-	}
+	assert.ErrorIs(t, err, errDB)
 }
 
 func TestRegister_HashError(t *testing.T) {
@@ -119,7 +106,5 @@ func TestRegister_HashError(t *testing.T) {
 	_, err := svc.Register(context.Background(), model.RegisterInput{
 		Email: "long@example.com", Password: longPassword,
 	})
-	if !stderrors.Is(err, bcrypt.ErrPasswordTooLong) {
-		t.Errorf("expected wrapped bcrypt.ErrPasswordTooLong, got %v", err)
-	}
+	assert.ErrorIs(t, err, bcrypt.ErrPasswordTooLong)
 }

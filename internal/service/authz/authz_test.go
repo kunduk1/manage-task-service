@@ -5,6 +5,7 @@ import (
 	stderrors "errors"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/kunduk1/manage-task-service/internal/model"
@@ -33,11 +34,9 @@ func TestRequireMember(t *testing.T) {
 			teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(2)).Return(tt.role, tt.repoErr)
 
 			role, err := New(teamRepo).RequireMember(context.Background(), 1, 2)
-			if !stderrors.Is(err, tt.wantErr) {
-				t.Fatalf("err = %v, want %v", err, tt.wantErr)
-			}
-			if tt.wantErr == nil && role != tt.wantRole {
-				t.Fatalf("role = %v, want %v", role, tt.wantRole)
+			require.ErrorIs(t, err, tt.wantErr)
+			if tt.wantErr == nil {
+				require.Equal(t, tt.wantRole, role)
 			}
 		})
 	}
@@ -64,9 +63,7 @@ func TestRequireRole(t *testing.T) {
 			teamRepo.EXPECT().GetMemberRole(gomock.Any(), int64(1), int64(2)).Return(tt.role, tt.repoErr)
 
 			err := New(teamRepo).RequireRole(context.Background(), 1, 2, tt.allowed...)
-			if !stderrors.Is(err, tt.wantErr) {
-				t.Fatalf("err = %v, want %v", err, tt.wantErr)
-			}
+			require.ErrorIs(t, err, tt.wantErr)
 		})
 	}
 }
@@ -80,7 +77,5 @@ func TestMemberRole_PropagatesNotMember(t *testing.T) {
 		Return(model.TeamRole(""), errors.ErrNotTeamMember)
 
 	_, err := New(teamRepo).MemberRole(context.Background(), 1, 2)
-	if !stderrors.Is(err, errors.ErrNotTeamMember) {
-		t.Fatalf("err = %v, want ErrNotTeamMember", err)
-	}
+	require.ErrorIs(t, err, errors.ErrNotTeamMember)
 }

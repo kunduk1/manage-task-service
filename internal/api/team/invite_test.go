@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/kunduk1/manage-task-service/internal/model"
@@ -35,16 +37,12 @@ func TestInviteHandler_Success(t *testing.T) {
 	req := inviteRequest(t, `{"user_id":7}`, "1", 42, mgr)
 	rec := serveAuthed(h.Invite, req, mgr)
 
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d (body=%q)", rec.Code, rec.Body.String())
-	}
+	require.Equal(t, http.StatusCreated, rec.Code)
 	var resp teamv1.InviteResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid response body: %v", err)
-	}
-	if resp.TeamID != 1 || resp.UserID != 7 || resp.Role != "member" {
-		t.Errorf("unexpected response: %+v", resp)
-	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, int64(1), resp.TeamID)
+	assert.Equal(t, int64(7), resp.UserID)
+	assert.Equal(t, "member", resp.Role)
 }
 
 func TestInviteHandler_RoleHonored(t *testing.T) {
@@ -58,9 +56,7 @@ func TestInviteHandler_RoleHonored(t *testing.T) {
 	req := inviteRequest(t, `{"user_id":7,"role":"admin"}`, "3", 42, mgr)
 	rec := serveAuthed(h.Invite, req, mgr)
 
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d (body=%q)", rec.Code, rec.Body.String())
-	}
+	require.Equal(t, http.StatusCreated, rec.Code)
 }
 
 func TestInviteHandler_BadTeamID(t *testing.T) {
@@ -70,9 +66,7 @@ func TestInviteHandler_BadTeamID(t *testing.T) {
 	req := inviteRequest(t, `{"user_id":7}`, "abc", 42, mgr)
 	rec := serveAuthed(h.Invite, req, mgr)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for invalid team id, got %d", rec.Code)
-	}
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestInviteHandler_Forbidden(t *testing.T) {
@@ -84,7 +78,5 @@ func TestInviteHandler_Forbidden(t *testing.T) {
 	req := inviteRequest(t, `{"user_id":7}`, "1", 42, mgr)
 	rec := serveAuthed(h.Invite, req, mgr)
 
-	if rec.Code != http.StatusForbidden {
-		t.Errorf("expected 403, got %d", rec.Code)
-	}
+	assert.Equal(t, http.StatusForbidden, rec.Code)
 }

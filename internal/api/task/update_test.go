@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/kunduk1/manage-task-service/internal/model"
@@ -24,16 +26,10 @@ func TestUpdateHandler_Success(t *testing.T) {
 	req := withURLParam(authedRequest(t, http.MethodPut, "/", `{"status":"done"}`, 42, mgr), "id", "10")
 	rec := serveAuthed(h.Update, req, mgr)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d (body=%q)", rec.Code, rec.Body.String())
-	}
+	require.Equal(t, http.StatusOK, rec.Code)
 	var resp taskv1.TaskResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid response body: %v", err)
-	}
-	if resp.Status != "done" {
-		t.Errorf("expected status done, got %q", resp.Status)
-	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, "done", resp.Status)
 }
 
 func TestUpdateHandler_BadID(t *testing.T) {
@@ -43,9 +39,7 @@ func TestUpdateHandler_BadID(t *testing.T) {
 	req := withURLParam(authedRequest(t, http.MethodPut, "/", `{"status":"done"}`, 42, mgr), "id", "abc")
 	rec := serveAuthed(h.Update, req, mgr)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for invalid task id, got %d", rec.Code)
-	}
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestUpdateHandler_NotFound(t *testing.T) {
@@ -57,7 +51,5 @@ func TestUpdateHandler_NotFound(t *testing.T) {
 	req := withURLParam(authedRequest(t, http.MethodPut, "/", `{"status":"done"}`, 42, mgr), "id", "10")
 	rec := serveAuthed(h.Update, req, mgr)
 
-	if rec.Code != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", rec.Code)
-	}
+	assert.Equal(t, http.StatusNotFound, rec.Code)
 }

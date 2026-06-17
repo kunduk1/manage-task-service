@@ -8,6 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/kunduk1/manage-task-service/pkg/errors"
 )
 
@@ -74,17 +77,11 @@ func TestServiceError_StatusMapping(t *testing.T) {
 			rec := httptest.NewRecorder()
 			ServiceError(rec, tc.err)
 
-			if rec.Code != tc.wantStatus {
-				t.Errorf("expected status %d, got %d", tc.wantStatus, rec.Code)
-			}
+			assert.Equal(t, tc.wantStatus, rec.Code)
 
 			var body ErrorBody
-			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-				t.Fatalf("response body is not valid ErrorBody JSON: %v (body=%q)", err, rec.Body.String())
-			}
-			if body.Error != tc.wantMsg {
-				t.Errorf("expected error message %q, got %q", tc.wantMsg, body.Error)
-			}
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+			assert.Equal(t, tc.wantMsg, body.Error)
 		})
 	}
 }
@@ -94,7 +91,5 @@ func TestServiceError_ContentType(t *testing.T) {
 	rec := httptest.NewRecorder()
 	ServiceError(rec, errors.ErrUserExists)
 
-	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
-		t.Errorf("expected Content-Type application/json, got %q", ct)
-	}
+	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 }

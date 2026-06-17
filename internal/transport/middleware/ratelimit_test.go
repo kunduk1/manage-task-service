@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
 
 	"github.com/kunduk1/manage-task-service/internal/logger"
@@ -51,39 +53,25 @@ func TestRateLimit_Allowed(t *testing.T) {
 	l := fakeLimiter{res: ratelimit.Result{Allowed: true, RetryAfter: 30 * time.Second}}
 	rec, nextCalled := serveRateLimit(l, "42", true)
 
-	if !nextCalled {
-		t.Fatal("expected next handler to be called when allowed")
-	}
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", rec.Code)
-	}
+	require.True(t, nextCalled, "expected next handler to be called when allowed")
+	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
 func TestRateLimit_Blocked(t *testing.T) {
 	l := fakeLimiter{res: ratelimit.Result{Allowed: false, RetryAfter: 30 * time.Second}}
 	rec, nextCalled := serveRateLimit(l, "42", true)
 
-	if nextCalled {
-		t.Error("next handler must not be called when blocked")
-	}
-	if rec.Code != http.StatusTooManyRequests {
-		t.Errorf("expected 429, got %d", rec.Code)
-	}
-	if got := rec.Header().Get("Retry-After"); got != "30" {
-		t.Errorf("expected Retry-After=30, got %q", got)
-	}
+	assert.False(t, nextCalled, "next handler must not be called when blocked")
+	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
+	assert.Equal(t, "30", rec.Header().Get("Retry-After"))
 }
 
 func TestRateLimit_FailOpenOnError(t *testing.T) {
 	l := fakeLimiter{err: stderrors.New("redis down")}
 	rec, nextCalled := serveRateLimit(l, "42", true)
 
-	if !nextCalled {
-		t.Fatal("expected fail-open: next handler must be called on limiter error")
-	}
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected 200 on fail-open, got %d", rec.Code)
-	}
+	require.True(t, nextCalled, "expected fail-open: next handler must be called on limiter error")
+	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
 func TestRateLimit_NoUserSkips(t *testing.T) {
@@ -91,10 +79,6 @@ func TestRateLimit_NoUserSkips(t *testing.T) {
 	l := fakeLimiter{res: ratelimit.Result{Allowed: false}}
 	rec, nextCalled := serveRateLimit(l, "", false)
 
-	if !nextCalled {
-		t.Fatal("expected next handler to be called when no userID in context")
-	}
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", rec.Code)
-	}
+	require.True(t, nextCalled, "expected next handler to be called when no userID in context")
+	assert.Equal(t, http.StatusOK, rec.Code)
 }

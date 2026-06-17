@@ -4,10 +4,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/kunduk1/manage-task-service/internal/metrics"
 )
@@ -26,28 +27,20 @@ func scrape(t *testing.T, setup func(r chi.Router), reqMethod, reqTarget string)
 
 	rec := httptest.NewRecorder()
 	m.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
-	if rec.Code != http.StatusOK {
-		t.Fatalf("metrics handler returned %d, want 200", rec.Code)
-	}
+	require.Equal(t, http.StatusOK, rec.Code)
 	body, err := io.ReadAll(rec.Body)
-	if err != nil {
-		t.Fatalf("failed to read metrics body: %v", err)
-	}
+	require.NoError(t, err)
 	return string(body)
 }
 
 func mustContain(t *testing.T, body, want string) {
 	t.Helper()
-	if !strings.Contains(body, want) {
-		t.Errorf("metrics output missing %q", want)
-	}
+	assert.Contains(t, body, want)
 }
 
 func mustNotContain(t *testing.T, body, unwanted string) {
 	t.Helper()
-	if strings.Contains(body, unwanted) {
-		t.Errorf("metrics output unexpectedly contains %q", unwanted)
-	}
+	assert.NotContains(t, body, unwanted)
 }
 
 func TestMetrics_Success(t *testing.T) {

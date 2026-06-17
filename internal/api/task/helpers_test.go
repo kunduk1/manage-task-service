@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/kunduk1/manage-task-service/internal/service/mocks"
@@ -32,9 +33,7 @@ func newManager() *token.Manager {
 func authedRequest(t *testing.T, method, target, body string, uid int64, mgr *token.Manager) *http.Request {
 	t.Helper()
 	tok, _, err := mgr.GenerateAccess(uid, "user@example.com")
-	if err != nil {
-		t.Fatalf("failed to generate token: %v", err)
-	}
+	require.NoError(t, err)
 	req := httptest.NewRequest(method, target, strings.NewReader(body))
 	req.Header.Set("Authorization", "Bearer "+tok)
 	return req

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/kunduk1/manage-task-service/internal/circuitbreaker"
@@ -35,15 +36,12 @@ func TestDecorator_OpensAfterNAndFastFails(t *testing.T) {
 	inner.EXPECT().SendInvite(gomock.Any(), gomock.Any()).Return(errBackend).Times(maxFailures)
 
 	for i := 0; i < maxFailures; i++ {
-		if err := client.SendInvite(t.Context(), email.Invite{}); !stderrors.Is(err, errBackend) {
-			t.Fatalf("call %d: expected backend error, got %v", i, err)
-		}
+		err := client.SendInvite(t.Context(), email.Invite{})
+		require.ErrorIs(t, err, errBackend)
 	}
 
 	err := client.SendInvite(t.Context(), email.Invite{})
-	if !stderrors.Is(err, circuitbreaker.ErrOpen) {
-		t.Fatalf("expected ErrOpen after breaker trips, got %v", err)
-	}
+	require.ErrorIs(t, err, circuitbreaker.ErrOpen)
 }
 
 func TestDecorator_PassesThroughSuccess(t *testing.T) {
@@ -52,16 +50,12 @@ func TestDecorator_PassesThroughSuccess(t *testing.T) {
 	want := email.Invite{ToEmail: "u@example.com", TeamID: 1, Role: "member"}
 	inner.EXPECT().SendInvite(gomock.Any(), want).Return(nil)
 
-	if err := client.SendInvite(t.Context(), want); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, client.SendInvite(t.Context(), want))
 }
 
 func TestDecorator_CloseDelegates(t *testing.T) {
 	client, inner := newDecorated(t, 3)
 	inner.EXPECT().Close().Return(nil)
 
-	if err := client.Close(); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, client.Close())
 }
